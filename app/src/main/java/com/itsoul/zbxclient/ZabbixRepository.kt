@@ -178,17 +178,24 @@ class ZabbixRepository {
 
         return retrofit.create(ZabbixApiService::class.java)
     }
-    suspend fun acknowledgeEvent(serverUrl: String, apiKey: String, eventId: String): Boolean {
+
+    suspend fun acknowledgeEvent(serverUrl: String, apiKey: String, eventId: String, isAcknowledge: Boolean): Boolean {
         return withContext(Dispatchers.IO) {
             try {
                 val apiService = createApiService(serverUrl, apiKey)
+
+                val action = if (isAcknowledge) 2 else 16 // 2 = acknowledge, 16 = unacknowledge
+                val message = if (isAcknowledge)
+                    "Event acknowledged from mobile app"
+                else
+                    "Event unacknowledged from mobile app"
 
                 val request = ZabbixRequest(
                     method = "event.acknowledge",
                     params = mapOf(
                         "eventids" to eventId,
-                        "action" to 2,
-                        "message" to "Event acknowledged from mobile app"
+                        "action" to action,
+                        "message" to message
                     )
                 )
 
@@ -200,7 +207,6 @@ class ZabbixRepository {
                             println("Zabbix API error: ${zabbixResponse.error.message}")
                             false
                         } else {
-                            // В случае успеха возвращаем true
                             true
                         }
                     } ?: false

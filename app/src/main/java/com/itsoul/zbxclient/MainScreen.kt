@@ -80,7 +80,7 @@ fun MainScreen(
     }
 
     // Функция для подтверждения проблемы
-    fun acknowledgeProblem(eventId: String) {
+    fun acknowledgeProblem(eventId: String, isAcknowledge: Boolean) {
         if (selectedServer == null) return
 
         coroutineScope.launch {
@@ -88,7 +88,8 @@ fun MainScreen(
                 val result = zabbixRepository.acknowledgeEvent(
                     serverUrl = selectedServer!!.url,
                     apiKey = selectedServer!!.apiKey,
-                    eventId = eventId
+                    eventId = eventId,
+                    isAcknowledge = isAcknowledge // true = acknowledge, false = unacknowledge
                 )
 
                 // Если успешно, обновляем данные
@@ -334,7 +335,7 @@ fun MainScreen(
 @Composable
 fun ProblemsList(
     problems: List<ZabbixProblem>,
-    onAcknowledgeProblem: (String) -> Unit = {} // Добавляем callback
+    onAcknowledgeProblem: (String, Boolean) -> Unit = { _, _ -> } // Добавляем параметр isAcknowledge
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -352,22 +353,29 @@ fun ProblemsList(
 @Composable
 fun ProblemItem(
     problem: ZabbixProblem,
-    onAcknowledge: (String) -> Unit = {} // Добавляем callback
+    onAcknowledge: (String, Boolean) -> Unit = { _, _ -> } // Добавляем параметр isAcknowledge
 ) {
     var showActions by remember { mutableStateOf(false) }
     var showAckDialog by remember { mutableStateOf(false) }
     val severityColor = getSeverityColor(problem.severity)
 
-    // Диалог подтверждения Ack
+    val isAcknowledged = problem.acknowledged == "1"
+    val dialogTitle = if (isAcknowledged) "Unacknowledge Event?" else "Ack Event?"
+    val dialogText = if (isAcknowledged)
+        "Вы уверены, что хотите снять подтверждение с этой проблемы?"
+    else
+        "Вы уверены, что хотите подтвердить эту проблему?"
+
+    // Диалог подтверждения Ack/Unack
     if (showAckDialog) {
         AlertDialog(
             onDismissRequest = { showAckDialog = false },
-            title = { Text("Ack Event?") },
-            text = { Text("Вы уверены, что хотите подтвердить эту проблему?") },
+            title = { Text(dialogTitle) },
+            text = { Text(dialogText) },
             confirmButton = {
                 Button(
                     onClick = {
-                        onAcknowledge(problem.eventid)
+                        onAcknowledge(problem.eventid, !isAcknowledged) // true = acknowledge, false = unacknowledge
                         showAckDialog = false
                         showActions = false
                     }
@@ -452,18 +460,18 @@ fun ProblemItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Иконка Ack (подтверждение)
-                    if (problem.acknowledged == "1") {
+                    if (isAcknowledged) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Acknowledged",
-                            tint = Color(0xFF4CAF50), // Зеленый
+                            tint = Color(0xFF4CAF50),
                             modifier = Modifier.size(16.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Cancel,
                             contentDescription = "Not Acknowledged",
-                            tint = Color(0xFFF44336), // Красный
+                            tint = Color(0xFFF44336),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -473,14 +481,14 @@ fun ProblemItem(
                         Icon(
                             imageVector = Icons.Default.Build,
                             contentDescription = "In Maintenance",
-                            tint = Color(0xFF2196F3), // Синий
+                            tint = Color(0xFF2196F3),
                             modifier = Modifier.size(16.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Active",
-                            tint = Color(0xFF9E9E9E), // Серый
+                            tint = Color(0xFF9E9E9E),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -495,18 +503,18 @@ fun ProblemItem(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Кнопка Acknowledge - показываем только если acknowledged != "1"
-                    if (problem.acknowledged != "1") {
-                        Button(
-                            onClick = { showAckDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                            modifier = Modifier.weight(1f).padding(end = 4.dp)
-                        ) {
-                            Text("Acknowledge")
-                        }
-                    } else {
-                        // Заполнитель для выравнивания, когда кнопка скрыта
-                        Spacer(modifier = Modifier.weight(1f).padding(end = 4.dp))
+                    // Кнопка Acknowledge/Unacknowledge - всегда показываем
+                    Button(
+                        onClick = { showAckDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isAcknowledged)
+                                Color(0xFFFF9800) // Оранжевый для Unacknowledge
+                            else
+                                Color(0xFF2196F3) // Синий для Acknowledge
+                        ),
+                        modifier = Modifier.weight(1f).padding(end = 4.dp)
+                    ) {
+                        Text(if (isAcknowledged) "Unacknowledge" else "Acknowledge")
                     }
 
                     Button(
@@ -525,7 +533,6 @@ fun ProblemItem(
         }
     }
 }
-
 @Composable
 fun getSeverityColor(severity: String): Color {
     return when (severity) {
