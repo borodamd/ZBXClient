@@ -18,8 +18,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
+import java.text.SimpleDateFormat
+import java.util.*
+
+// Иконки:
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.PlayArrow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,11 +46,55 @@ fun MainScreen(
     var selectedServer by remember { mutableStateOf<ZabbixServer?>(null) }
     var triggers by remember { mutableStateOf(emptyList<ZabbixTrigger>()) }
 
-    // Состояние для тестирования API
-    var allProblems by remember { mutableStateOf<List<ZabbixProblem>>(emptyList()) } // Все загруженные проблемы
+    // Состояние для API
+    var allProblems by remember { mutableStateOf<List<ZabbixProblem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var lastUpdateTime by remember { mutableStateOf<String?>(null) }
     val zabbixRepository = remember { ZabbixRepository() }
+
+    // Функция для получения текущего времени
+    fun getCurrentTime(): String {
+        val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date())
+    }
+
+    // Функция для обновления данных
+    fun refreshData() {
+        if (selectedServer == null) return
+
+        isLoading = true
+        allProblems = emptyList()
+
+        coroutineScope.launch {
+            try {
+                val result = zabbixRepository.getProblemsWithHostNames(selectedServer!!.url, selectedServer!!.apiKey)
+                allProblems = result
+                lastUpdateTime = getCurrentTime()
+            } catch (e: Exception) {
+                // Можно добавить обработку ошибок, если нужно
+                println("API Error: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Автоматическое обновление каждые 30 секунд
+    LaunchedEffect(selectedServer) {
+        while (true) {
+            if (selectedServer != null) {
+                refreshData()
+            }
+            delay(30000) // 30 секунд
+        }
+    }
+
+    // Обновляем при изменении выбранного сервера
+    LaunchedEffect(selectedServer) {
+        if (selectedServer != null) {
+            refreshData()
+        }
+    }
 
     // Фильтруем проблемы в зависимости от состояния чекбоксов
     val filteredProblems = remember(allProblems, dashboardState.showAcknowledged, dashboardState.showInMaintenance) {
@@ -49,21 +102,15 @@ fun MainScreen(
             val showAcknowledged = dashboardState.showAcknowledged
             val showInMaintenance = dashboardState.showInMaintenance
 
-            // Фильтрация по acknowledged
             val acknowledgedFilter = if (showAcknowledged) {
-                // Если чекбокс Ack ВКЛЮЧЕН - показываем ВСЕ проблемы (не фильтруем по acknowledged)
                 true
             } else {
-                // Если чекбокс Ack ВЫКЛЮЧЕН - скрываем проблемы с acknowledged:1 (подтвержденные)
                 problem.acknowledged != "1"
             }
 
-            // Фильтрация по maintenance (suppressed)
             val maintenanceFilter = if (showInMaintenance) {
-                // Если чекбокс Maint ВКЛЮЧЕН - показываем ВСЕ проблемы (не фильтруем по suppressed)
                 true
             } else {
-                // Если чекбокс Maint ВЫКЛЮЧЕН - скрываем проблемы с suppressed:1 (в maintenance)
                 problem.suppressed != "1"
             }
 
@@ -98,32 +145,6 @@ fun MainScreen(
         }
     }
 
-    // Функция для тестирования API
-    fun testApiConnection() {
-        if (selectedServer == null) {
-            errorMessage = "Please select a server first"
-            return
-        }
-
-        isLoading = true
-        errorMessage = null
-        allProblems = emptyList()
-
-        coroutineScope.launch {
-            try {
-                // ВАЖНО: использовать getProblemsWithHostNames вместо getProblems
-                val result = zabbixRepository.getProblemsWithHostNames(selectedServer!!.url, selectedServer!!.apiKey)
-                allProblems = result
-                errorMessage = "✅ Success! Loaded ${result.size} problems (filtered: ${filteredProblems.size})"
-            } catch (e: Exception) {
-                errorMessage = "❌ API Error: ${e.message}"
-                allProblems = emptyList()
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -144,44 +165,38 @@ fun MainScreen(
                     text = "Zabbix Dashboard",
                     style = MaterialTheme.typography.headlineSmall
                 )
-                // Отладочная информация
-                Text(
-                    text = "Серверов: ${servers.size}, ID: ${dashboardState.selectedServerId}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Ack: ${dashboardState.showAcknowledged}, Maint: ${dashboardState.showInMaintenance}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Проблемы: ${allProblems.size} всего, ${filteredProblems.size} отфильтровано",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Время последнего обновления
+                lastUpdateTime?.let { time ->
+                    Text(
+                        text = "Обновлено: $time",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                // Информация о проблемах
+                if (allProblems.isNotEmpty()) {
+                    Text(
+                        text = "Проблемы: ${filteredProblems.size} из ${allProblems.size}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Row {
-                // Кнопка тестирования API
-                Button(
-                    onClick = { testApiConnection() },
-                    enabled = selectedServer != null && !isLoading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    ),
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text("Test API")
-                }
-
+                // Кнопка обновления
                 IconButton(
-                    onClick = {
-                        // TODO: Refresh triggers
-                        saveState()
-                    }
+                    onClick = { refreshData() },
+                    enabled = selectedServer != null && !isLoading
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = onSettingsClick) {
@@ -194,42 +209,6 @@ fun MainScreen(
 
         // Разделитель
         Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-        // Состояние загрузки
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-
-        // Ошибки/сообщения API
-        errorMessage?.let { message ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (message.startsWith("✅"))
-                        Color(0xFFE8F5E8)
-                    else
-                        Color(0xFFFFEBEE)
-                )
-            ) {
-                Text(
-                    text = message,
-                    color = if (message.startsWith("✅"))
-                        Color(0xFF2E7D32)
-                    else
-                        Color(0xFFC62828),
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
 
         // Панель фильтров
         Row(
@@ -275,24 +254,6 @@ fun MainScreen(
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         // Список проблем из API с фильтрацией
-        if (filteredProblems.isNotEmpty()) {
-            Text(
-                text = "API Problems (${filteredProblems.size}):",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-            ProblemsList(problems = filteredProblems)
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-        } else if (allProblems.isNotEmpty()) {
-            Text(
-                text = "Нет проблем, соответствующих фильтрам",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-
-        // Список триггеров (существующий)
         if (selectedServer == null) {
             // Сообщение при отсутствии выбранного сервера
             Column(
@@ -303,16 +264,45 @@ fun MainScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Выберите сервер для отображения триггеров",
+                    text = "Выберите сервер для отображения проблем",
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
+        } else if (filteredProblems.isNotEmpty()) {
+            ProblemsList(problems = filteredProblems)
+        } else if (allProblems.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Нет проблем, соответствующих фильтрам",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         } else {
-            TriggerList(
-                triggers = triggers,
-                modifier = Modifier.weight(1f)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Нет активных проблем",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
+
+        // Список триггеров (существующий) - можно оставить или убрать
+        TriggerList(
+            triggers = triggers,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -383,32 +373,58 @@ fun ProblemItem(problem: ZabbixProblem) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Длительность проблемы
-            Text(
-                text = problem.getDuration(),
-                style = MaterialTheme.typography.bodySmall,
-                color = severityColor,
-                fontWeight = FontWeight.Medium
-            )
-
-            // Информация о фильтрах
+            // Нижняя строка: Длительность и иконки статусов
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (problem.acknowledged == "0") {
-                    Text(
-                        text = "Не подтверждено",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Red
-                    )
-                }
-                if (problem.suppressed == "0") {
-                    Text(
-                        text = "Не в maintenance",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Blue
-                    )
+                // Длительность проблемы
+                Text(
+                    text = problem.getDuration(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = severityColor,
+                    fontWeight = FontWeight.Medium
+                )
+
+                // Иконки статусов
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Иконка Ack (подтверждение)
+                    if (problem.acknowledged == "1") {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Acknowledged",
+                            tint = Color(0xFF4CAF50), // Зеленый
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Cancel,
+                            contentDescription = "Not Acknowledged",
+                            tint = Color(0xFFF44336), // Красный
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Иконка Maint (maintenance)
+                    if (problem.suppressed == "1") {
+                        Icon(
+                            imageVector = Icons.Default.Build,
+                            contentDescription = "In Maintenance",
+                            tint = Color(0xFF2196F3), // Синий
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Active",
+                            tint = Color(0xFF9E9E9E), // Серый
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
