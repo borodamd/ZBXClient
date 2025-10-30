@@ -18,19 +18,32 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     appSettings: AppSettings,
     onServersClick: () -> Unit,
-    preferencesManager: PreferencesManager
+    preferencesManager: PreferencesManager,
+    onBackClick: () -> Unit // ДОБАВЛЯЕМ этот параметр
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("General", "Advanced")
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header
+        // Header с кнопкой Back
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Кнопка Back
+            IconButton(
+                onClick = onBackClick
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Text(
                 text = "Settings",
                 style = MaterialTheme.typography.headlineSmall
@@ -140,7 +153,8 @@ fun SettingsScreenPreview() {
         SettingsScreen(
             appSettings = AppSettings(),
             onServersClick = {},
-            preferencesManager = PreferencesManager(androidx.compose.ui.platform.LocalContext.current)
+            preferencesManager = PreferencesManager(androidx.compose.ui.platform.LocalContext.current),
+            onBackClick = {} // ДОБАВЛЯЕМ в превью
         )
     }
 }

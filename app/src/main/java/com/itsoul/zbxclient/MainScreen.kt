@@ -38,10 +38,38 @@ fun MainScreen(
     var triggers by remember { mutableStateOf(emptyList<ZabbixTrigger>()) }
 
     // Состояние для тестирования API
-    var problems by remember { mutableStateOf<List<ZabbixProblem>>(emptyList()) }
+    var allProblems by remember { mutableStateOf<List<ZabbixProblem>>(emptyList()) } // Все загруженные проблемы
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val zabbixRepository = remember { ZabbixRepository() }
+
+    // Фильтруем проблемы в зависимости от состояния чекбоксов
+    val filteredProblems = remember(allProblems, dashboardState.showAcknowledged, dashboardState.showInMaintenance) {
+        allProblems.filter { problem ->
+            val showAcknowledged = dashboardState.showAcknowledged
+            val showInMaintenance = dashboardState.showInMaintenance
+
+            // Фильтрация по acknowledged
+            val acknowledgedFilter = if (showAcknowledged) {
+                // Если чекбокс Ack ВКЛЮЧЕН - показываем ВСЕ проблемы (не фильтруем по acknowledged)
+                true
+            } else {
+                // Если чекбокс Ack ВЫКЛЮЧЕН - скрываем проблемы с acknowledged:1 (подтвержденные)
+                problem.acknowledged != "1"
+            }
+
+            // Фильтрация по maintenance (suppressed)
+            val maintenanceFilter = if (showInMaintenance) {
+                // Если чекбокс Maint ВКЛЮЧЕН - показываем ВСЕ проблемы (не фильтруем по suppressed)
+                true
+            } else {
+                // Если чекбокс Maint ВЫКЛЮЧЕН - скрываем проблемы с suppressed:1 (в maintenance)
+                problem.suppressed != "1"
+            }
+
+            acknowledgedFilter && maintenanceFilter
+        }
+    }
 
     // Эффект для обновления выбранного сервера
     LaunchedEffect(servers, dashboardState.selectedServerId) {
@@ -79,22 +107,23 @@ fun MainScreen(
 
         isLoading = true
         errorMessage = null
-        problems = emptyList()
+        allProblems = emptyList()
 
         coroutineScope.launch {
             try {
                 // ВАЖНО: использовать getProblemsWithHostNames вместо getProblems
                 val result = zabbixRepository.getProblemsWithHostNames(selectedServer!!.url, selectedServer!!.apiKey)
-                problems = result
-                errorMessage = "✅ Success! Loaded ${result.size} problems"
+                allProblems = result
+                errorMessage = "✅ Success! Loaded ${result.size} problems (filtered: ${filteredProblems.size})"
             } catch (e: Exception) {
                 errorMessage = "❌ API Error: ${e.message}"
-                problems = emptyList()
+                allProblems = emptyList()
             } finally {
                 isLoading = false
             }
         }
     }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -123,6 +152,11 @@ fun MainScreen(
                 )
                 Text(
                     text = "Ack: ${dashboardState.showAcknowledged}, Maint: ${dashboardState.showInMaintenance}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Проблемы: ${allProblems.size} всего, ${filteredProblems.size} отфильтровано",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -240,16 +274,22 @@ fun MainScreen(
         // Разделитель
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-        // Список проблем из API (временный для тестирования)
-        if (problems.isNotEmpty()) {
+        // Список проблем из API с фильтрацией
+        if (filteredProblems.isNotEmpty()) {
             Text(
-                text = "API Problems (${problems.size}):",
+                text = "API Problems (${filteredProblems.size}):",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
-            ProblemsList(problems = problems)
+            ProblemsList(problems = filteredProblems)
             Spacer(modifier = Modifier.height(16.dp))
             Divider(modifier = Modifier.padding(vertical = 8.dp))
+        } else if (allProblems.isNotEmpty()) {
+            Text(
+                text = "Нет проблем, соответствующих фильтрам",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
         }
 
         // Список триггеров (существующий)
@@ -276,6 +316,7 @@ fun MainScreen(
     }
 }
 
+// Остальные функции без изменений...
 @Composable
 fun ProblemsList(problems: List<ZabbixProblem>) {
     LazyColumn(
@@ -292,9 +333,6 @@ fun ProblemsList(problems: List<ZabbixProblem>) {
 fun ProblemItem(problem: ZabbixProblem) {
     var showActions by remember { mutableStateOf(false) }
     val severityColor = getSeverityColor(problem.severity)
-
-    // ЗАКОММЕНТИРОВАНО: Отладочная информация
-    // val debugText = "DEBUG: Host: ${problem.hostName} (ID: ${problem.objectid})"
 
     Card(
         modifier = Modifier
@@ -313,14 +351,6 @@ fun ProblemItem(problem: ZabbixProblem) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // ЗАКОММЕНТИРОВАНО: Отладочная информация
-            // Text(
-            //     text = debugText,
-            //     style = MaterialTheme.typography.bodySmall,
-            //     color = Color.Red,
-            //     modifier = Modifier.fillMaxWidth()
-            // )
-
             // Первая строка: Хост и время
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -360,6 +390,27 @@ fun ProblemItem(problem: ZabbixProblem) {
                 color = severityColor,
                 fontWeight = FontWeight.Medium
             )
+
+            // Информация о фильтрах
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (problem.acknowledged == "0") {
+                    Text(
+                        text = "Не подтверждено",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red
+                    )
+                }
+                if (problem.suppressed == "0") {
+                    Text(
+                        text = "Не в maintenance",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Blue
+                    )
+                }
+            }
 
             // Кнопки действий (показываются по клику)
             if (showActions) {
@@ -402,7 +453,6 @@ fun getSeverityColor(severity: String): Color {
         else -> Color.Gray // Для других значений
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

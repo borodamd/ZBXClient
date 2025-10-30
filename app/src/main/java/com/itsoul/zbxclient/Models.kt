@@ -1,6 +1,9 @@
 // Models.kt
 package com.itsoul.zbxclient
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class ZabbixServer(
     val id: Long,
     val name: String,
@@ -19,6 +22,7 @@ data class AppSettings(
     val theme: AppTheme = AppTheme.SYSTEM,
     val language: String = "English"
 )
+
 data class ZabbixTrigger(
     val id: String,
     val description: String,
@@ -27,6 +31,8 @@ data class ZabbixTrigger(
     val acknowledged: Boolean = false,
     val maintenance: Boolean = false
 )
+
+@Serializable
 data class DashboardState(
     val selectedServerId: Long = 0,
     val showAcknowledged: Boolean = false,

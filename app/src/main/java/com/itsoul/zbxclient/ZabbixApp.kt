@@ -1,4 +1,3 @@
-// ZabbixApp.kt
 package com.itsoul.zbxclient
 
 import androidx.compose.foundation.layout.fillMaxSize
@@ -77,10 +76,8 @@ fun ZabbixAppTheme(
 
 @Composable
 fun AppNavigation(preferencesManager: PreferencesManager, appSettings: AppSettings) {
-    val context = LocalContext.current
-    val dataStore = remember { DataStore(context) }
+    val servers by preferencesManager.getServers().collectAsState(initial = emptyList())
 
-    var servers by remember { mutableStateOf(dataStore.getServers()) }
     var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Splash) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -103,19 +100,18 @@ fun AppNavigation(preferencesManager: PreferencesManager, appSettings: AppSettin
             AppScreen.Settings -> SettingsScreen(
                 appSettings = appSettings,
                 onServersClick = { currentScreen = AppScreen.Servers },
-                preferencesManager = preferencesManager
+                preferencesManager = preferencesManager,
+                onBackClick = { currentScreen = AppScreen.Main } // ДОБАВЛЯЕМ эту строку
             )
             AppScreen.Servers -> ServersScreen(
                 servers = servers,
                 onBackClick = { currentScreen = AppScreen.Settings },
-                onServersUpdate = { updatedServers ->
-                    servers = updatedServers
-                }
+                onServersUpdate = { /* не используется */ },
+                preferencesManager = preferencesManager
             )
         }
     }
 }
-
 sealed class AppScreen {
     object Splash : AppScreen()
     object Main : AppScreen()

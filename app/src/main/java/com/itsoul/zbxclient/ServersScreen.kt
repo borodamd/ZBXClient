@@ -17,15 +17,27 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServersScreen(
     servers: List<ZabbixServer>,
     onBackClick: () -> Unit,
-    onServersUpdate: (List<ZabbixServer>) -> Unit
+    onServersUpdate: (List<ZabbixServer>) -> Unit, // Этот параметр теперь не используется
+    preferencesManager: PreferencesManager
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingServer by remember { mutableStateOf<ZabbixServer?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Функция для сохранения серверов
+    fun saveServers(updatedServers: List<ZabbixServer>) {
+        // Сохраняем в SharedPreferences
+        coroutineScope.launch {
+            preferencesManager.saveServers(updatedServers)
+        }
+        // НЕ вызываем onServersUpdate - данные обновятся через Flow автоматически
+    }
 
     Column(
         modifier = Modifier
@@ -90,7 +102,7 @@ fun ServersScreen(
                         },
                         onDelete = { server ->
                             val updatedServers = servers.filter { it.id != server.id }
-                            onServersUpdate(updatedServers)
+                            saveServers(updatedServers) // Используем новую функцию
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -107,7 +119,7 @@ fun ServersScreen(
             onSave = { newServer ->
                 val newId = if (servers.isEmpty()) 1 else servers.maxOf { it.id } + 1
                 val updatedServers = servers + newServer.copy(id = newId)
-                onServersUpdate(updatedServers)
+                saveServers(updatedServers) // Используем новую функцию
                 showAddDialog = false
             }
         )
@@ -120,7 +132,7 @@ fun ServersScreen(
             onDismiss = { editingServer = null },
             onSave = { updatedServer ->
                 val updatedServers = servers.map { if (it.id == updatedServer.id) updatedServer else it }
-                onServersUpdate(updatedServers)
+                saveServers(updatedServers) // Используем новую функцию
                 editingServer = null
             }
         )
@@ -370,11 +382,13 @@ fun PasswordField(
 @Preview(showBackground = true)
 @Composable
 fun ServersScreenPreview() {
-    ZabbixAppTheme(darkTheme = false) {  // ← Добавь параметр darkTheme
+    val context = androidx.compose.ui.platform.LocalContext.current
+    ZabbixAppTheme(darkTheme = false) {
         ServersScreen(
             servers = emptyList(),
             onBackClick = {},
-            onServersUpdate = {}
+            onServersUpdate = {},
+            preferencesManager = PreferencesManager(context)
         )
     }
 }
