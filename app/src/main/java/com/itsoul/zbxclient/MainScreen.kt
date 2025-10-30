@@ -79,6 +79,28 @@ fun MainScreen(
         }
     }
 
+    // Функция для подтверждения проблемы
+    fun acknowledgeProblem(eventId: String) {
+        if (selectedServer == null) return
+
+        coroutineScope.launch {
+            try {
+                val result = zabbixRepository.acknowledgeEvent(
+                    serverUrl = selectedServer!!.url,
+                    apiKey = selectedServer!!.apiKey,
+                    eventId = eventId
+                )
+
+                // Если успешно, обновляем данные
+                if (result) {
+                    refreshData()
+                }
+            } catch (e: Exception) {
+                println("Acknowledge error: ${e.message}")
+            }
+        }
+    }
+
     // Автоматическое обновление каждые 30 секунд
     LaunchedEffect(selectedServer) {
         while (true) {
@@ -269,7 +291,10 @@ fun MainScreen(
                 )
             }
         } else if (filteredProblems.isNotEmpty()) {
-            ProblemsList(problems = filteredProblems)
+            ProblemsList(
+                problems = filteredProblems,
+                onAcknowledgeProblem = ::acknowledgeProblem
+            )
         } else if (allProblems.isNotEmpty()) {
             Column(
                 modifier = Modifier
@@ -306,23 +331,57 @@ fun MainScreen(
     }
 }
 
-// Остальные функции без изменений...
 @Composable
-fun ProblemsList(problems: List<ZabbixProblem>) {
+fun ProblemsList(
+    problems: List<ZabbixProblem>,
+    onAcknowledgeProblem: (String) -> Unit = {} // Добавляем callback
+) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(problems) { problem ->
-            ProblemItem(problem = problem)
+            ProblemItem(
+                problem = problem,
+                onAcknowledge = onAcknowledgeProblem
+            )
         }
     }
 }
 
 @Composable
-fun ProblemItem(problem: ZabbixProblem) {
+fun ProblemItem(
+    problem: ZabbixProblem,
+    onAcknowledge: (String) -> Unit = {} // Добавляем callback
+) {
     var showActions by remember { mutableStateOf(false) }
+    var showAckDialog by remember { mutableStateOf(false) }
     val severityColor = getSeverityColor(problem.severity)
+
+    // Диалог подтверждения Ack
+    if (showAckDialog) {
+        AlertDialog(
+            onDismissRequest = { showAckDialog = false },
+            title = { Text("Ack Event?") },
+            text = { Text("Вы уверены, что хотите подтвердить эту проблему?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onAcknowledge(problem.eventid)
+                        showAckDialog = false
+                        showActions = false
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAckDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -436,11 +495,19 @@ fun ProblemItem(problem: ZabbixProblem) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Button(
-                        onClick = { showActions = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                        modifier = Modifier.weight(1f).padding(end = 4.dp)
-                    ) { Text("Acknowledge") }
+                    // Кнопка Acknowledge - показываем только если acknowledged != "1"
+                    if (problem.acknowledged != "1") {
+                        Button(
+                            onClick = { showAckDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                            modifier = Modifier.weight(1f).padding(end = 4.dp)
+                        ) {
+                            Text("Acknowledge")
+                        }
+                    } else {
+                        // Заполнитель для выравнивания, когда кнопка скрыта
+                        Spacer(modifier = Modifier.weight(1f).padding(end = 4.dp))
+                    }
 
                     Button(
                         onClick = { showActions = false },
