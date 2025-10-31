@@ -11,7 +11,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -143,7 +142,38 @@ fun MainScreen(
         }
     }
 
+    // Функция для закрытия проблемы
+    fun closeProblem(eventId: String) {
+        println("🔄 closeProblem: eventId=$eventId")
 
+        if (selectedServer == null) {
+            println("❌ selectedServer is null")
+            return
+        }
+
+        coroutineScope.launch {
+            try {
+                println("🔄 Calling closeProblem...")
+                val result = zabbixRepository.closeProblem(
+                    serverUrl = selectedServer!!.url,
+                    apiKey = selectedServer!!.apiKey,
+                    eventId = eventId
+                )
+
+                println("✅ closeProblem result: $result")
+
+                // Если успешно, обновляем данные МГНОВЕННО с помощью forceRefreshData
+                if (result) {
+                    println("🔄 Calling forceRefreshData...")
+                    forceRefreshData()
+                } else {
+                    println("❌ closeProblem returned false")
+                }
+            } catch (e: Exception) {
+                println("❌ Close problem error: ${e.message}")
+            }
+        }
+    }
 
     // Автоматическое обновление каждые 30 секунд
     LaunchedEffect(selectedServer) {
@@ -337,7 +367,8 @@ fun MainScreen(
         } else if (filteredProblems.isNotEmpty()) {
             ProblemsList(
                 problems = filteredProblems,
-                onAcknowledgeProblem = ::acknowledgeProblem
+                onAcknowledgeProblem = ::acknowledgeProblem,
+                onCloseProblem = ::closeProblem
             )
         } else if (allProblems.isNotEmpty()) {
             Column(
@@ -378,7 +409,8 @@ fun MainScreen(
 @Composable
 fun ProblemsList(
     problems: List<ZabbixProblem>,
-    onAcknowledgeProblem: (String, Boolean) -> Unit = { _, _ -> } // Добавляем параметр isAcknowledge
+    onAcknowledgeProblem: (String, Boolean) -> Unit = { _, _ -> },
+    onCloseProblem: (String) -> Unit = { _ -> }
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -387,7 +419,8 @@ fun ProblemsList(
         items(problems) { problem ->
             ProblemItem(
                 problem = problem,
-                onAcknowledge = onAcknowledgeProblem
+                onAcknowledge = onAcknowledgeProblem,
+                onClose = onCloseProblem
             )
         }
     }
@@ -396,13 +429,17 @@ fun ProblemsList(
 @Composable
 fun ProblemItem(
     problem: ZabbixProblem,
-    onAcknowledge: (String, Boolean) -> Unit = { _, _ -> }
+    onAcknowledge: (String, Boolean) -> Unit = { _, _ -> },
+    onClose: (String) -> Unit = { _ -> }
 ) {
     var showActions by remember { mutableStateOf(false) }
     var showAckDialog by remember { mutableStateOf(false) }
+    var showCloseDialog by remember { mutableStateOf(false) }
     val severityColor = getSeverityColor(problem.severity)
 
     val isAcknowledged = problem.acknowledged == "1"
+    val isManualCloseEnabled = problem.manualClose == "1"
+
     val dialogTitle = if (isAcknowledged) "Unacknowledge Event?" else "Ack Event?"
     val dialogText = if (isAcknowledged)
         "Acknowledge this event?"
@@ -435,6 +472,31 @@ fun ProblemItem(
         )
     }
 
+    // Диалог подтверждения закрытия проблемы
+    if (showCloseDialog) {
+        AlertDialog(
+            onDismissRequest = { showCloseDialog = false },
+            title = { Text("Close Problem?") },
+            text = { Text("Are you sure you want to close this problem?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Отправляем запрос и закрываем диалог
+                        onClose(problem.eventid)
+                        showCloseDialog = false
+                        showActions = false
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -482,6 +544,16 @@ fun ProblemItem(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Показываем комментарии если они есть
+            if (problem.comments.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Comments: ${problem.comments}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -562,11 +634,24 @@ fun ProblemItem(
                         Text(if (isAcknowledged) "UnAck Event" else "Ack Event")
                     }
 
+                    // Кнопка Close - зависит от manual_close
                     Button(
-                        onClick = { showActions = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        onClick = {
+                            if (isManualCloseEnabled) {
+                                showCloseDialog = true
+                            }
+                        },
+                        enabled = isManualCloseEnabled,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isManualCloseEnabled)
+                                Color(0xFF4CAF50) // Зеленый если доступно
+                            else
+                                Color(0xFF9E9E9E) // Серый если недоступно
+                        ),
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
-                    ) { Text("Close") }
+                    ) {
+                        Text(if (isManualCloseEnabled) "Close" else "N/A")
+                    }
 
                     Button(
                         onClick = { showActions = false },
@@ -578,6 +663,7 @@ fun ProblemItem(
         }
     }
 }
+
 @Composable
 fun getSeverityColor(severity: String): Color {
     return when (severity) {
