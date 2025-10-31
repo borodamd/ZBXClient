@@ -9,6 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.util.Log
 
 class ZabbixRepository {
 
@@ -57,8 +58,17 @@ class ZabbixRepository {
                             throw Exception("Zabbix API error: ${zabbixResponse.error.message}")
                         }
 
+                        // Обрабатываем результат как List<Map<String, Any>>
+                        val resultList = when (val result = zabbixResponse.result) {
+                            is List<*> -> result.filterIsInstance<Map<String, Any>>()
+                            else -> {
+                                Log.e("ZabbixRepository", "Unexpected result type: ${result?.javaClass}")
+                                emptyList()
+                            }
+                        }
+
                         // Получаем список trigger IDs
-                        val triggerIds = zabbixResponse.result.mapNotNull {
+                        val triggerIds = resultList.mapNotNull {
                             safeCast<String>(it["objectid"])
                         }.distinct()
 
@@ -66,7 +76,7 @@ class ZabbixRepository {
                         val triggersData = getTriggersData(serverUrl, apiKey, triggerIds)
 
                         // Парсим проблемы с данными триггеров
-                        zabbixResponse.result.mapNotNull { problemMap ->
+                        resultList.mapNotNull { problemMap ->
                             try {
                                 val triggerId = safeCast<String>(problemMap["objectid"]) ?: ""
                                 val triggerInfo = triggersData[triggerId] ?: mapOf(
@@ -133,8 +143,17 @@ class ZabbixRepository {
                             throw Exception("Zabbix API error: ${zabbixResponse.error.message}")
                         }
 
+                        // Обрабатываем результат как List<Map<String, Any>>
+                        val resultList = when (val result = zabbixResponse.result) {
+                            is List<*> -> result.filterIsInstance<Map<String, Any>>()
+                            else -> {
+                                Log.e("ZabbixRepository", "Unexpected result type for trigger.get: ${result?.javaClass}")
+                                emptyList()
+                            }
+                        }
+
                         // Создаем мапу с данными триггеров
-                        zabbixResponse.result.mapNotNull { triggerMap ->
+                        resultList.mapNotNull { triggerMap ->
                             try {
                                 val triggerId = safeCast<String>(triggerMap["triggerid"]) ?: ""
                                 val manualClose = safeCast<String>(triggerMap["manual_close"]) ?: "0"
@@ -182,8 +201,17 @@ class ZabbixRepository {
                             throw Exception("Zabbix API error: ${zabbixResponse.error.message}")
                         }
 
+                        // Обрабатываем результат как List<Map<String, Any>>
+                        val resultList = when (val result = zabbixResponse.result) {
+                            is List<*> -> result.filterIsInstance<Map<String, Any>>()
+                            else -> {
+                                Log.e("ZabbixRepository", "Unexpected result type for trigger.get: ${result?.javaClass}")
+                                emptyList()
+                            }
+                        }
+
                         // Парсим имена хостов из Map
-                        zabbixResponse.result.mapNotNull { triggerMap ->
+                        resultList.mapNotNull { triggerMap ->
                             try {
                                 val triggerId = safeCast<String>(triggerMap["triggerid"]) ?: ""
                                 val hosts = safeCast<List<Map<String, Any>>>(triggerMap["hosts"]) ?: emptyList()

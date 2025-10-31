@@ -121,13 +121,6 @@ data class ZabbixTrigger(
     val maintenance: Boolean = false
 )
 
-@Serializable
-data class ZabbixResponse(
-    val jsonrpc: String,
-    val result: List<@Contextual Map<String, @Contextual Any>>, // Добавляем @Contextual для Any
-    val id: Int,
-    val error: ZabbixError? = null
-)
 
 @Serializable
 data class ZabbixError(
@@ -140,6 +133,15 @@ data class ZabbixError(
 data class ZabbixRequest(
     val jsonrpc: String = "2.0",
     val method: String,
-    val params: Map<String, @Contextual Any>, // Добавляем @Contextual для Any
-    val id: Int = (1..10000).random()
+    val params: Map<String, @Contextual Any>,
+    val id: Int = (1..10000).random(),
+    val auth: String? = null  // Добавьте это поле
+)
+
+@Serializable
+data class ZabbixResponse(
+    val jsonrpc: String,
+    val result: @Contextual Any?, // Изменили на Any? для поддержки разных типов
+    val id: Int,
+    val error: ZabbixError? = null
 )
