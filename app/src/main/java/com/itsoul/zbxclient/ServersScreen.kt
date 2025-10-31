@@ -7,12 +7,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,20 +28,18 @@ import kotlinx.coroutines.launch
 fun ServersScreen(
     servers: List<ZabbixServer>,
     onBackClick: () -> Unit,
-    onServersUpdate: (List<ZabbixServer>) -> Unit, // Этот параметр теперь не используется
+    onServersUpdate: (List<ZabbixServer>) -> Unit,
     preferencesManager: PreferencesManager
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingServer by remember { mutableStateOf<ZabbixServer?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    // Функция для сохранения серверов
     fun saveServers(updatedServers: List<ZabbixServer>) {
-        // Сохраняем в SharedPreferences
         coroutineScope.launch {
             preferencesManager.saveServers(updatedServers)
         }
-        // НЕ вызываем onServersUpdate - данные обновятся через Flow автоматически
     }
 
     Column(
@@ -50,29 +53,37 @@ fun ServersScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Servers",
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Row {
-                Button(onClick = onBackClick) {
-                    Text("Back")
+            // Кнопка назад слева
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                FloatingActionButton(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Server")
-                }
+                Text(
+                    text = stringResource(R.string.servers),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
+
+            // Кнопка добавления справа
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_server))
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         if (servers.isEmpty()) {
-            // Message when no servers
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -81,18 +92,17 @@ fun ServersScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "No servers configured",
+                    text = stringResource(R.string.no_servers),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Tap + to add your first Zabbix server",
+                    text = stringResource(R.string.tap_to_add_first_server),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
-            // Servers list
             LazyColumn {
                 items(servers.size) { index ->
                     ServerItem(
@@ -102,7 +112,7 @@ fun ServersScreen(
                         },
                         onDelete = { server ->
                             val updatedServers = servers.filter { it.id != server.id }
-                            saveServers(updatedServers) // Используем новую функцию
+                            saveServers(updatedServers)
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -111,7 +121,6 @@ fun ServersScreen(
         }
     }
 
-    // Add server dialog
     if (showAddDialog) {
         AddEditServerDialog(
             server = null,
@@ -119,26 +128,26 @@ fun ServersScreen(
             onSave = { newServer ->
                 val newId = if (servers.isEmpty()) 1 else servers.maxOf { it.id } + 1
                 val updatedServers = servers + newServer.copy(id = newId)
-                saveServers(updatedServers) // Используем новую функцию
+                saveServers(updatedServers)
                 showAddDialog = false
             }
         )
     }
 
-    // Edit server dialog
     if (editingServer != null) {
         AddEditServerDialog(
             server = editingServer,
             onDismiss = { editingServer = null },
             onSave = { updatedServer ->
                 val updatedServers = servers.map { if (it.id == updatedServer.id) updatedServer else it }
-                saveServers(updatedServers) // Используем новую функцию
+                saveServers(updatedServers)
                 editingServer = null
             }
         )
     }
 }
 
+// Остальной код без изменений...
 @Composable
 fun ServerItem(
     server: ZabbixServer,
@@ -177,17 +186,10 @@ fun ServerItem(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "User: ${server.username}",
+                        text = stringResource(R.string.auth_token),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (server.useApiKey) {
-                        Text(
-                            text = "Auth: API Key",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
 
                 Row {
@@ -196,7 +198,7 @@ fun ServerItem(
                     ) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.edit_server),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -205,7 +207,7 @@ fun ServerItem(
                     ) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -214,12 +216,11 @@ fun ServerItem(
         }
     }
 
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Server") },
-            text = { Text("Are you sure you want to delete \"${server.name}\"?") },
+            title = { Text(stringResource(R.string.delete_server)) },
+            text = { Text(stringResource(R.string.delete_server_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -227,12 +228,12 @@ fun ServerItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -247,14 +248,11 @@ fun AddEditServerDialog(
 ) {
     var serverName by remember { mutableStateOf(server?.name ?: "") }
     var serverUrl by remember { mutableStateOf(server?.url ?: "https://zbx.zserver.com/api_jsonrpc.php") }
-    var username by remember { mutableStateOf(server?.username ?: "") }
-    var password by remember { mutableStateOf("") }
-    var useApiKey by remember { mutableStateOf(server?.useApiKey ?: false) }
     var apiKey by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (server == null) "Add Zabbix Server" else "Edit Zabbix Server") },
+        title = { Text(if (server == null) stringResource(R.string.add_server) else stringResource(R.string.edit_server)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
@@ -262,58 +260,28 @@ fun AddEditServerDialog(
                 OutlinedTextField(
                     value = serverName,
                     onValueChange = { serverName = it },
-                    label = { Text("Server Name") },
+                    label = { Text(stringResource(R.string.server_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = serverUrl,
                     onValueChange = { serverUrl = it },
-                    label = { Text("URL") },
+                    label = { Text(stringResource(R.string.server_url)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                PasswordField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = stringResource(R.string.api_key),
+                    showPlaceholder = server != null && server.apiKey.isNotEmpty()
+                )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = useApiKey,
-                        onCheckedChange = { useApiKey = it }
-                    )
-                    Text("Use API Key")
-                }
-
-                if (!useApiKey) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = { Text("Username") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PasswordField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = "Password",
-                        showPlaceholder = server != null && server.password.isNotEmpty()
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PasswordField(
-                        value = apiKey,
-                        onValueChange = { apiKey = it },
-                        label = "API Key",
-                        showPlaceholder = server != null && server.apiKey.isNotEmpty()
-                    )
-                }
-
-                // Hint that password/key is saved
                 if (server != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (useApiKey) "API key is saved (enter new value to change)" else "Password is saved (enter new value to change)",
+                        text = stringResource(R.string.token_saved_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -327,28 +295,27 @@ fun AddEditServerDialog(
                         id = server?.id ?: 0,
                         name = serverName,
                         url = serverUrl,
-                        username = username,
-                        password = password.ifEmpty { server?.password ?: "" },
-                        useApiKey = useApiKey,
+                        username = "",
+                        password = "",
+                        useApiKey = true,
                         apiKey = apiKey.ifEmpty { server?.apiKey ?: "" }
                     )
                     onSave(updatedServer)
                 },
                 enabled = serverName.isNotEmpty() && serverUrl.isNotEmpty() &&
-                        ((!useApiKey && username.isNotEmpty()) || (useApiKey && (apiKey.isNotEmpty() || server?.apiKey?.isNotEmpty() == true)))
+                        (apiKey.isNotEmpty() || server?.apiKey?.isNotEmpty() == true)
             ) {
-                Text(if (server == null) "Save" else "Update")
+                Text(if (server == null) stringResource(R.string.save) else stringResource(R.string.update))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
 }
 
-// Simple password field with visibility toggle
 @Composable
 fun PasswordField(
     value: String,
@@ -365,10 +332,13 @@ fun PasswordField(
         modifier = Modifier.fillMaxWidth(),
         visualTransformation = if (isVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
-            TextButton(
+            IconButton(
                 onClick = { isVisible = !isVisible }
             ) {
-                Text(if (isVisible) "Hide" else "Show")
+                Icon(
+                    imageVector = if (isVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (isVisible) "Hide token" else "Show token"
+                )
             }
         },
         placeholder = {

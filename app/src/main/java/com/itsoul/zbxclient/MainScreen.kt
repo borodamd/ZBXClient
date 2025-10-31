@@ -277,14 +277,20 @@ fun MainScreen(
                 // Информация о проблемах
                 if (allProblems.isNotEmpty()) {
                     Text(
-                        text = stringResource(R.string.problems_count, filteredProblems.size, allProblems.size),
+                        text = stringResource(
+                            R.string.problems_count,
+                            filteredProblems.size,
+                            allProblems.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Row {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 // Кнопка обновления
                 IconButton(
                     onClick = { refreshData() },
@@ -296,18 +302,27 @@ fun MainScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.refresh)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(onClick = onSettingsClick) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.settings))
+                // FAB-стиль кнопки настроек
+                FloatingActionButton(
+                    onClick = onSettingsClick,
+                    modifier = Modifier.size(48.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.settings)
+                    )
                 }
             }
         }
-
         // Разделитель
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 

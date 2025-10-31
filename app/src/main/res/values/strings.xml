@@ -13,10 +13,12 @@
     <string name="refresh">Refresh</string>
     <string name="settings">Settings</string>
     <string name="server">Server</string>
-    <string name="ack">Ack</string>
-    <string name="maint">Maint</string>
+    <string name="ack">Acknowledged</string>
+    <string name="maint">In Maintenance</string>
     <string name="no_servers">No servers</string>
     <string name="active">Active</string>
+
+
 
     <!-- Problem Item -->
     <string name="ack_event">Ack Event</string>
@@ -82,5 +84,9 @@
     <string name="navigate">Navigate</string>
     <!-- New strings for ServersScreen -->
     <string name="servers">Servers</string>
-
+    <string name="tap_to_add_first_server">Tap + to add your first Zabbix server</string>
+    <string name="auth_token">Auth: Token</string>
+    <string name="update">Update</string>
+    <string name="token_saved_hint">Token is saved (enter new value to change)</string>
+    <string name="delete_server">Delete Server</string>
 </resources>
