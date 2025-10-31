@@ -11,29 +11,79 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
+
+
+//locales:
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+val LocalLanguage = staticCompositionLocalOf { "en" }
+
+
+// Добавляем класс для управления состоянием приложения
+
+@Stable
+class AppState(
+    private val context: android.content.Context,
+    val preferencesManager: PreferencesManager
+) {
+    var currentLanguage by mutableStateOf(LocaleManager.getSavedLanguage(context))
+        private set
+
+    fun setLanguage(language: LocaleManager.AppLanguage) {
+        if (currentLanguage != language) {
+            currentLanguage = language
+            LocaleManager.setLocale(context, language)
+            // Перезапускаем activity для применения изменений
+            (context as? MainActivity)?.recreate()
+        }
+    }
+
+    fun getAvailableLanguages(): List<LocaleManager.AppLanguage> {
+        return LocaleManager.AppLanguage.values().toList()
+    }
+}
+
+@Composable
+fun rememberAppState(
+    context: android.content.Context = LocalContext.current,
+    preferencesManager: PreferencesManager
+) = remember(context, preferencesManager) {
+    AppState(context, preferencesManager)
+}
 
 @Composable
 fun ZabbixApp(preferencesManager: PreferencesManager) {
+    val context = LocalContext.current
     val appSettings by preferencesManager.getAppSettings().collectAsState(initial = AppSettings())
 
-    // Упрощенная версия без isSystemInDarkTheme
+    // Отслеживаем изменение языка для принудительного обновления
+    val currentLanguage = LocaleManager.getSavedLanguage(context)
+    val languageKey = remember { currentLanguage.code }
+
+    val appState = rememberAppState(context = context, preferencesManager = preferencesManager)
+
     val useDarkTheme = when (appSettings.theme) {
         AppTheme.LIGHT -> false
         AppTheme.DARK -> true
-        AppTheme.SYSTEM -> false // временно
+        AppTheme.SYSTEM -> false
     }
 
-    ZabbixAppTheme(
-        darkTheme = useDarkTheme
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            AppNavigation(preferencesManager, appSettings)
+    // Используем ключ языка для принудительной перекомпозиции
+    key(languageKey) {
+        ZabbixAppTheme(darkTheme = useDarkTheme) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                AppNavigation(preferencesManager, appSettings, appState)
+            }
         }
     }
 }
+
+
 
 @Composable
 fun ZabbixAppTheme(
@@ -75,7 +125,11 @@ fun ZabbixAppTheme(
 }
 
 @Composable
-fun AppNavigation(preferencesManager: PreferencesManager, appSettings: AppSettings) {
+fun AppNavigation(
+    preferencesManager: PreferencesManager,
+    appSettings: AppSettings,
+    appState: AppState
+) {
     val servers by preferencesManager.getServers().collectAsState(initial = emptyList())
 
     var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Splash) }
@@ -101,7 +155,8 @@ fun AppNavigation(preferencesManager: PreferencesManager, appSettings: AppSettin
                 appSettings = appSettings,
                 onServersClick = { currentScreen = AppScreen.Servers },
                 preferencesManager = preferencesManager,
-                onBackClick = { currentScreen = AppScreen.Main } // ДОБАВЛЯЕМ эту строку
+                onBackClick = { currentScreen = AppScreen.Main },
+                appState = appState // Передаем appState
             )
             AppScreen.Servers -> ServersScreen(
                 servers = servers,
@@ -112,6 +167,7 @@ fun AppNavigation(preferencesManager: PreferencesManager, appSettings: AppSettin
         }
     }
 }
+
 sealed class AppScreen {
     object Splash : AppScreen()
     object Main : AppScreen()

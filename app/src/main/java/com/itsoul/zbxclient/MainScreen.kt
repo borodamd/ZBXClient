@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,7 @@ fun MainScreen(
     preferencesManager: PreferencesManager
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Загружаем сохраненное состояние
     val dashboardState by preferencesManager.getDashboardState().collectAsState(initial = DashboardState())
@@ -260,13 +263,13 @@ fun MainScreen(
         ) {
             Column {
                 Text(
-                    text = "Zabbix Dashboard",
+                    text = stringResource(R.string.zabbix_dashboard),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 // Время последнего обновления
                 lastUpdateTime?.let { time ->
                     Text(
-                        text = "Обновлено: $time",
+                        text = stringResource(R.string.last_updated, time),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -274,7 +277,7 @@ fun MainScreen(
                 // Информация о проблемах
                 if (allProblems.isNotEmpty()) {
                     Text(
-                        text = "Проблемы: ${filteredProblems.size} из ${allProblems.size}",
+                        text = stringResource(R.string.problems_count, filteredProblems.size, allProblems.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -293,14 +296,14 @@ fun MainScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = onSettingsClick) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Settings")
+                    Text(stringResource(R.string.settings))
                 }
             }
         }
@@ -332,14 +335,14 @@ fun MainScreen(
             // Чек-боксы фильтров
             Column {
                 FilterCheckbox(
-                    text = "Ack",
+                    text = stringResource(R.string.ack),
                     checked = dashboardState.showAcknowledged,
                     onCheckedChange = { newValue ->
                         saveState(newShowAcknowledged = newValue)
                     }
                 )
                 FilterCheckbox(
-                    text = "Maint",
+                    text = stringResource(R.string.maint),
                     checked = dashboardState.showInMaintenance,
                     onCheckedChange = { newValue ->
                         saveState(newShowInMaintenance = newValue)
@@ -362,7 +365,7 @@ fun MainScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Выберите сервер для отображения проблем",
+                    text = stringResource(R.string.no_server_selected),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -381,7 +384,7 @@ fun MainScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Нет проблем, соответствующих фильтрам",
+                    text = stringResource(R.string.no_problems_filter),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -394,7 +397,7 @@ fun MainScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Нет активных проблем",
+                    text = stringResource(R.string.no_active_problems),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -437,17 +440,21 @@ fun ProblemItem(
     var showActions by remember { mutableStateOf(false) }
     var showAckDialog by remember { mutableStateOf(false) }
     var showCloseDialog by remember { mutableStateOf(false) }
-    var showDetailsDialog by remember { mutableStateOf(false) } // Новое состояние для деталей
+    var showDetailsDialog by remember { mutableStateOf(false) }
     val severityColor = getSeverityColor(problem.severity)
 
     val isAcknowledged = problem.acknowledged == "1"
     val isManualCloseEnabled = problem.manualClose == "1"
 
-    val dialogTitle = if (isAcknowledged) "Unacknowledge Event?" else "Ack Event?"
-    val dialogText = if (isAcknowledged)
-        "Unacknowledge this event?"
+    val dialogTitle = if (isAcknowledged)
+        stringResource(R.string.unack_dialog_title)
     else
-        "Acknowledge this event?"
+        stringResource(R.string.ack_dialog_title)
+
+    val dialogText = if (isAcknowledged)
+        stringResource(R.string.unack_dialog_text)
+    else
+        stringResource(R.string.ack_dialog_text)
 
     // Диалог подтверждения Ack/Unack
     if (showAckDialog) {
@@ -463,12 +470,12 @@ fun ProblemItem(
                         showActions = false
                     }
                 ) {
-                    Text("Yes")
+                    Text(stringResource(R.string.yes))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAckDialog = false }) {
-                    Text("No")
+                    Text(stringResource(R.string.no))
                 }
             }
         )
@@ -478,8 +485,8 @@ fun ProblemItem(
     if (showCloseDialog) {
         AlertDialog(
             onDismissRequest = { showCloseDialog = false },
-            title = { Text("Close Problem?") },
-            text = { Text("Are you sure you want to close this problem?") },
+            title = { Text(stringResource(R.string.close_dialog_title)) },
+            text = { Text(stringResource(R.string.close_dialog_text)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -488,12 +495,12 @@ fun ProblemItem(
                         showActions = false
                     }
                 ) {
-                    Text("Yes")
+                    Text(stringResource(R.string.yes))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCloseDialog = false }) {
-                    Text("No")
+                    Text(stringResource(R.string.no))
                 }
             }
         )
@@ -505,7 +512,7 @@ fun ProblemItem(
             onDismissRequest = { showDetailsDialog = false },
             title = {
                 Text(
-                    text = "Problem Details",
+                    text = stringResource(R.string.problem_details),
                     style = MaterialTheme.typography.titleMedium
                 )
             },
@@ -513,7 +520,7 @@ fun ProblemItem(
                 Column {
                     // Хост
                     Text(
-                        text = "Host: ${problem.hostName.ifEmpty { "Host-${problem.objectid}" }}",
+                        text = "${stringResource(R.string.host)}: ${problem.hostName.ifEmpty { "Host-${problem.objectid}" }}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -521,14 +528,14 @@ fun ProblemItem(
 
                     // Описание проблемы
                     Text(
-                        text = "Problem: ${problem.name}",
+                        text = "${stringResource(R.string.problem)}: ${problem.name}",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     // Время возникновения
                     Text(
-                        text = "Time: ${problem.getFormattedTime()}",
+                        text = "${stringResource(R.string.time)}: ${problem.getFormattedTime()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -536,7 +543,7 @@ fun ProblemItem(
 
                     // Длительность
                     Text(
-                        text = "Duration: ${problem.getDuration()}",
+                        text = "${stringResource(R.string.duration)}: ${problem.getDuration()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -544,7 +551,7 @@ fun ProblemItem(
 
                     // Severity
                     Text(
-                        text = "Severity: ${getSeverityText(problem.severity)}",
+                        text = "${stringResource(R.string.severity)}: ${getSeverityText(problem.severity)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = severityColor,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -556,30 +563,30 @@ fun ProblemItem(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Status: ",
+                            text = "${stringResource(R.string.status)}: ",
                             style = MaterialTheme.typography.bodySmall
                         )
                         if (isAcknowledged) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Acknowledged",
+                                contentDescription = stringResource(R.string.acknowledged),
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Acknowledged",
+                                text = stringResource(R.string.acknowledged),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFF4CAF50)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Cancel,
-                                contentDescription = "Not Acknowledged",
+                                contentDescription = stringResource(R.string.not_acknowledged),
                                 tint = Color(0xFFF44336),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Not Acknowledged",
+                                text = stringResource(R.string.not_acknowledged),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFF44336)
                             )
@@ -590,12 +597,12 @@ fun ProblemItem(
                         if (problem.suppressed == "1") {
                             Icon(
                                 imageVector = Icons.Default.Build,
-                                contentDescription = "In Maintenance",
+                                contentDescription = stringResource(R.string.in_maintenance),
                                 tint = Color(0xFF2196F3),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "In Maintenance",
+                                text = stringResource(R.string.in_maintenance),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFF2196F3)
                             )
@@ -606,7 +613,7 @@ fun ProblemItem(
                     if (problem.comments.isNotEmpty()) {
                         Column {
                             Text(
-                                text = "Comments:",
+                                text = "${stringResource(R.string.comments)}:",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(bottom = 4.dp)
@@ -619,7 +626,7 @@ fun ProblemItem(
                         }
                     } else {
                         Text(
-                            text = "No comments",
+                            text = stringResource(R.string.no_comments),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontStyle = FontStyle.Italic
@@ -629,7 +636,7 @@ fun ProblemItem(
             },
             confirmButton = {
                 TextButton(onClick = { showDetailsDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -684,23 +691,23 @@ fun ProblemItem(
                     if (isAcknowledged) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Acknowledged",
-                            tint = Color(0xFF4CAF50), // Зелёный
+                            contentDescription = stringResource(R.string.acknowledged),
+                            tint = Color(0xFF4CAF50),
                             modifier = Modifier.size(16.dp)
                         )
                     } else if (isManualCloseEnabled) {
                         // Жёлтый флаг если не подтверждено, но можно закрыть
                         Icon(
                             imageVector = Icons.Default.Flag,
-                            contentDescription = "Not acknowledged but can be closed",
-                            tint = Color(0xFFFFC107), // Жёлтый
+                            contentDescription = stringResource(R.string.not_acknowledged),
+                            tint = Color(0xFFFFC107),
                             modifier = Modifier.size(16.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Cancel,
-                            contentDescription = "Not Acknowledged",
-                            tint = Color(0xFFF44336), // Красный
+                            contentDescription = stringResource(R.string.not_acknowledged),
+                            tint = Color(0xFFF44336),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -709,14 +716,14 @@ fun ProblemItem(
                     if (problem.suppressed == "1") {
                         Icon(
                             imageVector = Icons.Default.Build,
-                            contentDescription = "In Maintenance",
+                            contentDescription = stringResource(R.string.in_maintenance),
                             tint = Color(0xFF2196F3),
                             modifier = Modifier.size(16.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Active",
+                            contentDescription = stringResource(R.string.active),
                             tint = Color(0xFF9E9E9E),
                             modifier = Modifier.size(16.dp)
                         )
@@ -753,7 +760,7 @@ fun ProblemItem(
                         ),
                         modifier = Modifier.weight(1f).padding(end = 4.dp)
                     ) {
-                        Text(if (isAcknowledged) "UnAck Event" else "Ack Event")
+                        Text(if (isAcknowledged) stringResource(R.string.unack_event) else stringResource(R.string.ack_event))
                     }
 
                     // Кнопка Close
@@ -772,7 +779,7 @@ fun ProblemItem(
                         ),
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                     ) {
-                        Text(if (isManualCloseEnabled) "Close" else "N/A")
+                        Text(if (isManualCloseEnabled) stringResource(R.string.close) else stringResource(R.string.not_available))
                     }
 
                     // Кнопка Details
@@ -784,7 +791,7 @@ fun ProblemItem(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E9E9E)),
                         modifier = Modifier.weight(1f).padding(start = 4.dp)
                     ) {
-                        Text("Details")
+                        Text(stringResource(R.string.details))
                     }
                 }
             }
@@ -792,7 +799,7 @@ fun ProblemItem(
     }
 }
 
-    // Вспомогательная функция для текстового представления severity
+// Вспомогательная функция для текстового представления severity
 @Composable
 fun getSeverityText(severity: String): String {
     return when (severity) {
@@ -803,14 +810,15 @@ fun getSeverityText(severity: String): String {
         else -> "Unknown"
     }
 }
+
 @Composable
 fun getSeverityColor(severity: String): Color {
     return when (severity) {
-        "4" -> Color(0xFFCC6633) // Тёмно-оранжевый
-        "3" -> Color(0xFFFF9966) // Светло-оранжевый
-        "2" -> Color(0xFFFFCC66) // Светло-жёлтый
-        "1" -> Color(0xFF66CCFF) // Голубой
-        else -> Color.Gray // Для других значений
+        "4" -> Color(0xFFCC6633)
+        "3" -> Color(0xFFFF9966)
+        "2" -> Color(0xFFFFCC66)
+        "1" -> Color(0xFF66CCFF)
+        else -> Color.Gray
     }
 }
 
@@ -830,14 +838,14 @@ fun ServerDropdown(
         modifier = modifier
     ) {
         OutlinedTextField(
-            value = selectedServer?.name ?: "Выберите сервер",
+            value = selectedServer?.name ?: stringResource(R.string.select_server),
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            label = { Text("Сервер") }
+            label = { Text(stringResource(R.string.server)) }
         )
 
         ExposedDropdownMenu(
@@ -846,7 +854,7 @@ fun ServerDropdown(
         ) {
             if (servers.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text("Нет серверов") },
+                    text = { Text(stringResource(R.string.no_servers)) },
                     onClick = { expanded = false }
                 )
             } else {
@@ -896,7 +904,7 @@ fun TriggerList(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Нет активных триггеров",
+                text = stringResource(R.string.no_active_problems),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
