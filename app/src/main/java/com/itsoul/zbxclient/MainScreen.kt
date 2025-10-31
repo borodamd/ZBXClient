@@ -9,11 +9,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -435,6 +437,7 @@ fun ProblemItem(
     var showActions by remember { mutableStateOf(false) }
     var showAckDialog by remember { mutableStateOf(false) }
     var showCloseDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) } // Новое состояние для деталей
     val severityColor = getSeverityColor(problem.severity)
 
     val isAcknowledged = problem.acknowledged == "1"
@@ -442,9 +445,9 @@ fun ProblemItem(
 
     val dialogTitle = if (isAcknowledged) "Unacknowledge Event?" else "Ack Event?"
     val dialogText = if (isAcknowledged)
-        "Acknowledge this event?"
+        "Unacknowledge this event?"
     else
-        "Unacknowledge this event??"
+        "Acknowledge this event?"
 
     // Диалог подтверждения Ack/Unack
     if (showAckDialog) {
@@ -455,7 +458,6 @@ fun ProblemItem(
             confirmButton = {
                 Button(
                     onClick = {
-                        // Отправляем запрос и закрываем диалог
                         onAcknowledge(problem.eventid, !isAcknowledged)
                         showAckDialog = false
                         showActions = false
@@ -481,7 +483,6 @@ fun ProblemItem(
             confirmButton = {
                 Button(
                     onClick = {
-                        // Отправляем запрос и закрываем диалог
                         onClose(problem.eventid)
                         showCloseDialog = false
                         showActions = false
@@ -493,6 +494,142 @@ fun ProblemItem(
             dismissButton = {
                 TextButton(onClick = { showCloseDialog = false }) {
                     Text("No")
+                }
+            }
+        )
+    }
+
+    // Диалог с деталями проблемы (включая комментарии)
+    if (showDetailsDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetailsDialog = false },
+            title = {
+                Text(
+                    text = "Problem Details",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column {
+                    // Хост
+                    Text(
+                        text = "Host: ${problem.hostName.ifEmpty { "Host-${problem.objectid}" }}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Описание проблемы
+                    Text(
+                        text = "Problem: ${problem.name}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Время возникновения
+                    Text(
+                        text = "Time: ${problem.getFormattedTime()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Длительность
+                    Text(
+                        text = "Duration: ${problem.getDuration()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Severity
+                    Text(
+                        text = "Severity: ${getSeverityText(problem.severity)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = severityColor,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Статусы
+                    Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Status: ",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (isAcknowledged) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Acknowledged",
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Acknowledged",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4CAF50)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "Not Acknowledged",
+                                tint = Color(0xFFF44336),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Not Acknowledged",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFF44336)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        if (problem.suppressed == "1") {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = "In Maintenance",
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "In Maintenance",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF2196F3)
+                            )
+                        }
+                    }
+
+                    // Комментарии (если есть)
+                    if (problem.comments.isNotEmpty()) {
+                        Column {
+                            Text(
+                                text = "Comments:",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                            Text(
+                                text = problem.comments,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "No comments",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailsDialog = false }) {
+                    Text("Close")
                 }
             }
         )
@@ -515,80 +652,55 @@ fun ProblemItem(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Первая строка: Хост и время
+            // Первая строка: Хост, продолжительность и иконки статусов
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Хост (слева)
                 Text(
                     text = problem.hostName.ifEmpty { "Host-${problem.objectid}" },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = severityColor
-                )
-
-                Text(
-                    text = problem.getFormattedTime(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Описание проблемы
-            Text(
-                text = problem.name,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Показываем комментарии если они есть
-            if (problem.comments.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Comments: ${problem.comments}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Нижняя строка: Длительность и иконки статусов
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Длительность проблемы
-                Text(
-                    text = problem.getDuration(),
-                    style = MaterialTheme.typography.bodySmall,
                     color = severityColor,
-                    fontWeight = FontWeight.Medium
+                    modifier = Modifier.weight(1f)
                 )
 
-                // Иконки статусов
+                // Правая часть: продолжительность и иконки статусов
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Иконка Ack (подтверждение)
+                    // Продолжительность
+                    Text(
+                        text = problem.getDuration(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = severityColor,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    // Иконка Ack (подтверждение) с учётом manual_close
                     if (isAcknowledged) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Acknowledged",
-                            tint = Color(0xFF4CAF50),
+                            tint = Color(0xFF4CAF50), // Зелёный
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else if (isManualCloseEnabled) {
+                        // Жёлтый флаг если не подтверждено, но можно закрыть
+                        Icon(
+                            imageVector = Icons.Default.Flag,
+                            contentDescription = "Not acknowledged but can be closed",
+                            tint = Color(0xFFFFC107), // Жёлтый
                             modifier = Modifier.size(16.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Cancel,
                             contentDescription = "Not Acknowledged",
-                            tint = Color(0xFFF44336),
+                            tint = Color(0xFFF44336), // Красный
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -612,6 +724,16 @@ fun ProblemItem(
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Описание проблемы
+            Text(
+                text = problem.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // Кнопки действий (показываются по клику)
             if (showActions) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -620,21 +742,21 @@ fun ProblemItem(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Кнопка Acknowledge/Unacknowledge - всегда показываем
+                    // Кнопка Acknowledge/Unacknowledge
                     Button(
                         onClick = { showAckDialog = true },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isAcknowledged)
-                                Color(0xFFFF9800) // Оранжевый для Unacknowledge
+                                Color(0xFFFF9800)
                             else
-                                Color(0xFF2196F3) // Синий для Acknowledge
+                                Color(0xFF2196F3)
                         ),
                         modifier = Modifier.weight(1f).padding(end = 4.dp)
                     ) {
                         Text(if (isAcknowledged) "UnAck Event" else "Ack Event")
                     }
 
-                    // Кнопка Close - зависит от manual_close
+                    // Кнопка Close
                     Button(
                         onClick = {
                             if (isManualCloseEnabled) {
@@ -644,26 +766,43 @@ fun ProblemItem(
                         enabled = isManualCloseEnabled,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isManualCloseEnabled)
-                                Color(0xFF4CAF50) // Зеленый если доступно
+                                Color(0xFF4CAF50)
                             else
-                                Color(0xFF9E9E9E) // Серый если недоступно
+                                Color(0xFF9E9E9E)
                         ),
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                     ) {
                         Text(if (isManualCloseEnabled) "Close" else "N/A")
                     }
 
+                    // Кнопка Details
                     Button(
-                        onClick = { showActions = false },
+                        onClick = {
+                            showDetailsDialog = true
+                            showActions = false
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E9E9E)),
                         modifier = Modifier.weight(1f).padding(start = 4.dp)
-                    ) { Text("Details") }
+                    ) {
+                        Text("Details")
+                    }
                 }
             }
         }
     }
 }
 
+    // Вспомогательная функция для текстового представления severity
+@Composable
+fun getSeverityText(severity: String): String {
+    return when (severity) {
+        "4" -> "High"
+        "3" -> "Average"
+        "2" -> "Warning"
+        "1" -> "Information"
+        else -> "Unknown"
+    }
+}
 @Composable
 fun getSeverityColor(severity: String): Color {
     return when (severity) {
