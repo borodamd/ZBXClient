@@ -7,7 +7,8 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 class ZabbixRepository {
 
     suspend fun getProblemsWithHostNames(serverUrl: String, apiKey: String): List<ZabbixProblem> {
@@ -182,40 +183,47 @@ class ZabbixRepository {
     suspend fun acknowledgeEvent(serverUrl: String, apiKey: String, eventId: String, isAcknowledge: Boolean): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val apiService = createApiService(serverUrl, apiKey)
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .build()
 
-                val action = if (isAcknowledge) 2 else 16 // 2 = acknowledge, 16 = unacknowledge
+                val action = if (isAcknowledge) 2 else 16
                 val message = if (isAcknowledge)
                     "Event acknowledged from mobile app"
                 else
                     "Event unacknowledged from mobile app"
 
-                val request = ZabbixRequest(
-                    method = "event.acknowledge",
-                    params = mapOf(
-                        "eventids" to eventId,
-                        "action" to action,
-                        "message" to message
-                    )
-                )
+                val requestBody = """
+            {
+                "jsonrpc": "2.0",
+                "method": "event.acknowledge",
+                "params": {
+                    "eventids": "$eventId",
+                    "action": $action,
+                    "message": "$message"
+                },
+                "id": ${System.currentTimeMillis()}
+            }
+            """.trimIndent()
 
-                val response = apiService.makeRequest(request)
+                val mediaType = "application/json".toMediaType()
+                val request = okhttp3.Request.Builder()
+                    .url(serverUrl)
+                    .post(requestBody.toRequestBody(mediaType))
+                    .header("Authorization", "Bearer $apiKey")
+                    .build()
 
-                if (response.isSuccessful) {
-                    response.body()?.let { zabbixResponse ->
-                        if (zabbixResponse.error != null) {
-                            println("Zabbix API error: ${zabbixResponse.error.message}")
-                            false
-                        } else {
-                            true
-                        }
-                    } ?: false
-                } else {
-                    println("HTTP error: ${response.code()} - ${response.message()}")
-                    false
-                }
+                println("🔄 Sending direct HTTP acknowledge request for event: $eventId")
+                val response = client.newCall(request).execute()
+
+                val result = response.isSuccessful
+                println("✅ Direct HTTP acknowledge result: $result (HTTP ${response.code})")
+
+                result
             } catch (e: Exception) {
-                println("Failed to acknowledge event: ${e.message}")
+                println("❌ Direct HTTP acknowledge exception: ${e.message}")
                 false
             }
         }

@@ -79,28 +79,71 @@ fun MainScreen(
         }
     }
 
+    // Функция для мгновенного обновления данных (без ожидания 30 секунд)
+    fun forceRefreshData() {
+        println("🔄 forceRefreshData called")
+
+        if (selectedServer == null) {
+            println("❌ selectedServer is null")
+            return
+        }
+
+        coroutineScope.launch {
+            isLoading = true
+            try {
+                println("🔄 Fetching fresh data...")
+                val result = zabbixRepository.getProblemsWithHostNames(
+                    selectedServer!!.url,
+                    selectedServer!!.apiKey
+                )
+                println("✅ forceRefreshData: received ${result.size} problems")
+                allProblems = result
+                lastUpdateTime = getCurrentTime()
+                println("✅ forceRefreshData: UI should update now")
+            } catch (e: Exception) {
+                println("❌ Force refresh error: ${e.message}")
+            } finally {
+                isLoading = false
+                println("✅ forceRefreshData: completed")
+            }
+        }
+    }
+
     // Функция для подтверждения проблемы
     fun acknowledgeProblem(eventId: String, isAcknowledge: Boolean) {
-        if (selectedServer == null) return
+        println("🔄 acknowledgeProblem: eventId=$eventId, isAcknowledge=$isAcknowledge")
+
+        if (selectedServer == null) {
+            println("❌ selectedServer is null")
+            return
+        }
 
         coroutineScope.launch {
             try {
+                println("🔄 Calling acknowledgeEvent...")
                 val result = zabbixRepository.acknowledgeEvent(
                     serverUrl = selectedServer!!.url,
                     apiKey = selectedServer!!.apiKey,
                     eventId = eventId,
-                    isAcknowledge = isAcknowledge // true = acknowledge, false = unacknowledge
+                    isAcknowledge = isAcknowledge
                 )
 
-                // Если успешно, обновляем данные
+                println("✅ acknowledgeEvent result: $result")
+
+                // Если успешно, обновляем данные МГНОВЕННО с помощью forceRefreshData
                 if (result) {
-                    refreshData()
+                    println("🔄 Calling forceRefreshData...")
+                    forceRefreshData()
+                } else {
+                    println("❌ acknowledgeEvent returned false")
                 }
             } catch (e: Exception) {
-                println("Acknowledge error: ${e.message}")
+                println("❌ Acknowledge error: ${e.message}")
             }
         }
     }
+
+
 
     // Автоматическое обновление каждые 30 секунд
     LaunchedEffect(selectedServer) {
@@ -353,7 +396,7 @@ fun ProblemsList(
 @Composable
 fun ProblemItem(
     problem: ZabbixProblem,
-    onAcknowledge: (String, Boolean) -> Unit = { _, _ -> } // Добавляем параметр isAcknowledge
+    onAcknowledge: (String, Boolean) -> Unit = { _, _ -> }
 ) {
     var showActions by remember { mutableStateOf(false) }
     var showAckDialog by remember { mutableStateOf(false) }
@@ -362,9 +405,9 @@ fun ProblemItem(
     val isAcknowledged = problem.acknowledged == "1"
     val dialogTitle = if (isAcknowledged) "Unacknowledge Event?" else "Ack Event?"
     val dialogText = if (isAcknowledged)
-        "Вы уверены, что хотите снять подтверждение с этой проблемы?"
+        "Acknowledge this event?"
     else
-        "Вы уверены, что хотите подтвердить эту проблему?"
+        "Unacknowledge this event??"
 
     // Диалог подтверждения Ack/Unack
     if (showAckDialog) {
@@ -375,7 +418,8 @@ fun ProblemItem(
             confirmButton = {
                 Button(
                     onClick = {
-                        onAcknowledge(problem.eventid, !isAcknowledged) // true = acknowledge, false = unacknowledge
+                        // Отправляем запрос и закрываем диалог
+                        onAcknowledge(problem.eventid, !isAcknowledged)
                         showAckDialog = false
                         showActions = false
                     }
@@ -390,6 +434,7 @@ fun ProblemItem(
             }
         )
     }
+
 
     Card(
         modifier = Modifier
@@ -514,7 +559,7 @@ fun ProblemItem(
                         ),
                         modifier = Modifier.weight(1f).padding(end = 4.dp)
                     ) {
-                        Text(if (isAcknowledged) "Unacknowledge" else "Acknowledge")
+                        Text(if (isAcknowledged) "UnAck Event" else "Ack Event")
                     }
 
                     Button(
