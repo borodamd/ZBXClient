@@ -41,7 +41,7 @@ fun MainScreen(
     preferencesManager: PreferencesManager
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+// - Warning    val context = LocalContext.current
 
     // Загружаем сохраненное состояние
     val dashboardState by preferencesManager.getDashboardState().collectAsState(initial = DashboardState())

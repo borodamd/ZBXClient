@@ -28,13 +28,13 @@ import kotlinx.coroutines.launch
 fun ServersScreen(
     servers: List<ZabbixServer>,
     onBackClick: () -> Unit,
-    onServersUpdate: (List<ZabbixServer>) -> Unit,
+//onServersUpdate: (List<ZabbixServer>) -> Unit,
     preferencesManager: PreferencesManager
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingServer by remember { mutableStateOf<ZabbixServer?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+// Warning    val context = LocalContext.current
 
     fun saveServers(updatedServers: List<ZabbixServer>) {
         coroutineScope.launch {
@@ -357,7 +357,7 @@ fun ServersScreenPreview() {
         ServersScreen(
             servers = emptyList(),
             onBackClick = {},
-            onServersUpdate = {},
+//            onServersUpdate = {},
             preferencesManager = PreferencesManager(context)
         )
     }

@@ -59,41 +59,45 @@ class ZabbixRepository {
 
                         // Получаем список trigger IDs
                         val triggerIds = zabbixResponse.result.mapNotNull {
-                            it["objectid"] as? String
+                            safeCast<String>(it["objectid"])
                         }.distinct()
 
                         // Получаем данные триггеров с manual_close и comments
                         val triggersData = getTriggersData(serverUrl, apiKey, triggerIds)
 
                         // Парсим проблемы с данными триггеров
-                        zabbixResponse.result.map { problemMap ->
-                            val triggerId = problemMap["objectid"] as? String ?: ""
-                            val triggerInfo = triggersData[triggerId] ?: mapOf(
-                                "manual_close" to "0",
-                                "comments" to ""
-                            )
+                        zabbixResponse.result.mapNotNull { problemMap ->
+                            try {
+                                val triggerId = safeCast<String>(problemMap["objectid"]) ?: ""
+                                val triggerInfo = triggersData[triggerId] ?: mapOf(
+                                    "manual_close" to "0",
+                                    "comments" to ""
+                                )
 
-                            ZabbixProblem(
-                                eventid = problemMap["eventid"] as? String ?: "",
-                                source = problemMap["source"] as? String ?: "0",
-                                objectid = triggerId,
-                                clock = problemMap["clock"] as? String ?: "",
-                                ns = problemMap["ns"] as? String ?: "0",
-                                r_eventid = problemMap["r_eventid"] as? String,
-                                r_clock = problemMap["r_clock"] as? String,
-                                r_ns = problemMap["r_ns"] as? String,
-                                correlationid = problemMap["correlationid"] as? String,
-                                userid = problemMap["userid"] as? String,
-                                name = problemMap["name"] as? String ?: "",
-                                acknowledged = problemMap["acknowledged"] as? String ?: "0",
-                                severity = problemMap["severity"] as? String ?: "0",
-                                suppressed = problemMap["suppressed"] as? String ?: "0",
-                                opdata = problemMap["opdata"] as? String,
-                                tags = parseTags(problemMap["tags"]),
-                                hostName = "", // Будет заполнено позже
-                                manualClose = triggerInfo["manual_close"] as? String ?: "0",
-                                comments = triggerInfo["comments"] as? String ?: ""
-                            )
+                                ZabbixProblem(
+                                    eventid = safeCast<String>(problemMap["eventid"]) ?: "",
+                                    source = safeCast<String>(problemMap["source"]) ?: "0",
+                                    objectid = triggerId,
+                                    clock = safeCast<String>(problemMap["clock"]) ?: "",
+                                    ns = safeCast<String>(problemMap["ns"]) ?: "0",
+                                    r_eventid = safeCast<String>(problemMap["r_eventid"]),
+                                    r_clock = safeCast<String>(problemMap["r_clock"]),
+                                    r_ns = safeCast<String>(problemMap["r_ns"]),
+                                    correlationid = safeCast<String>(problemMap["correlationid"]),
+                                    userid = safeCast<String>(problemMap["userid"]),
+                                    name = safeCast<String>(problemMap["name"]) ?: "",
+                                    acknowledged = safeCast<String>(problemMap["acknowledged"]) ?: "0",
+                                    severity = safeCast<String>(problemMap["severity"]) ?: "0",
+                                    suppressed = safeCast<String>(problemMap["suppressed"]) ?: "0",
+                                    opdata = safeCast<String>(problemMap["opdata"]),
+                                    tags = parseTags(problemMap["tags"]),
+                                    hostName = "", // Будет заполнено позже
+                                    manualClose = safeCast<String>(triggerInfo["manual_close"]) ?: "0",
+                                    comments = safeCast<String>(triggerInfo["comments"]) ?: ""
+                                )
+                            } catch (_: Exception) {
+                                null // Пропускаем проблемные данные
+                            }
                         }
                     } ?: emptyList()
                 } else {
@@ -130,16 +134,20 @@ class ZabbixRepository {
                         }
 
                         // Создаем мапу с данными триггеров
-                        zabbixResponse.result.associate { triggerMap ->
-                            val triggerId = triggerMap["triggerid"] as? String ?: ""
-                            val manualClose = triggerMap["manual_close"] as? String ?: "0"
-                            val comments = triggerMap["comments"] as? String ?: ""
+                        zabbixResponse.result.mapNotNull { triggerMap ->
+                            try {
+                                val triggerId = safeCast<String>(triggerMap["triggerid"]) ?: ""
+                                val manualClose = safeCast<String>(triggerMap["manual_close"]) ?: "0"
+                                val comments = safeCast<String>(triggerMap["comments"]) ?: ""
 
-                            triggerId to mapOf(
-                                "manual_close" to manualClose,
-                                "comments" to comments
-                            )
-                        }
+                                triggerId to mapOf(
+                                    "manual_close" to manualClose,
+                                    "comments" to comments
+                                )
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }.toMap()
                     } ?: emptyMap()
                 } else {
                     println("Error fetching triggers data: HTTP ${response.code()}")
@@ -175,12 +183,18 @@ class ZabbixRepository {
                         }
 
                         // Парсим имена хостов из Map
-                        zabbixResponse.result.associate { triggerMap ->
-                            val triggerId = triggerMap["triggerid"] as? String ?: ""
-                            val hosts = triggerMap["hosts"] as? List<Map<String, Any>> ?: emptyList()
-                            val hostName = hosts.firstOrNull()?.get("host") as? String ?: "Unknown"
-                            triggerId to hostName
-                        }
+                        zabbixResponse.result.mapNotNull { triggerMap ->
+                            try {
+                                val triggerId = safeCast<String>(triggerMap["triggerid"]) ?: ""
+                                val hosts = safeCast<List<Map<String, Any>>>(triggerMap["hosts"]) ?: emptyList()
+                                val hostName = hosts.firstOrNull()?.let { hostMap ->
+                                    safeCast<String>(hostMap["host"])
+                                } ?: "Unknown"
+                                triggerId to hostName
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }.toMap()
                     } ?: emptyMap()
                 } else {
                     throw Exception("HTTP error: ${response.code()} - ${response.message()}")
@@ -194,20 +208,31 @@ class ZabbixRepository {
 
     private fun parseTags(tagsAny: Any?): List<ZabbixTag> {
         return try {
-            when (tagsAny) {
+            when (val tagsList = safeCast<List<*>>(tagsAny)) {
                 is List<*> -> {
-                    tagsAny.filterIsInstance<Map<String, Any>>().map { tagMap ->
-                        ZabbixTag(
-                            tag = tagMap["tag"] as? String ?: "",
-                            value = tagMap["value"] as? String ?: ""
-                        )
+                    tagsList.mapNotNull { tagItem ->
+                        try {
+                            val tagMap = safeCast<Map<String, Any>>(tagItem) ?: return@mapNotNull null
+                            ZabbixTag(
+                                tag = safeCast<String>(tagMap["tag"]) ?: "",
+                                value = safeCast<String>(tagMap["value"]) ?: ""
+                            )
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
                 }
                 else -> emptyList()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    // Безопасная функция для приведения типов
+    @Suppress("UNCHECKED_CAST")
+    private inline fun <reified T> safeCast(obj: Any?): T? {
+        return obj as? T
     }
 
     private fun createApiService(baseUrl: String, apiKey: String): ZabbixApiService {

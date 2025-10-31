@@ -12,7 +12,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Применяем сохраненную локаль перед созданием UI
         applySavedLocale(true)
 
         setContent {
@@ -22,7 +21,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Проверяем изменение языка при возвращении в приложение
         applySavedLocale(false)
     }
 
@@ -30,17 +28,9 @@ class MainActivity : ComponentActivity() {
         val savedLanguage = LocaleManager.getSavedLanguage(this)
         val newLanguageCode = savedLanguage.code
 
-        // Применяем если язык изменился или принудительно
         if (force || currentLanguageCode != newLanguageCode) {
             currentLanguageCode = newLanguageCode
-            val newContext = LocaleManager.setLocale(this, savedLanguage)
-
-            // Обновляем ресурсы активности
-            resources.updateConfiguration(
-                newContext.resources.configuration,
-                newContext.resources.displayMetrics
-            )
-
+            LocaleManager.setLocale(this, savedLanguage)
             println("DEBUG: Language applied: $newLanguageCode")
         }
     }

@@ -12,11 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
+//import androidx.compose.ui.unit.dp
 
 
 //locales:
-import androidx.compose.runtime.CompositionLocalProvider
+//import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 val LocalLanguage = staticCompositionLocalOf { "en" }
 
@@ -156,14 +156,13 @@ fun AppNavigation(
                 onServersClick = { currentScreen = AppScreen.Servers },
                 preferencesManager = preferencesManager,
                 onBackClick = { currentScreen = AppScreen.Main },
-                appState = appState // Передаем appState
+                appState = appState
             )
             AppScreen.Servers -> ServersScreen(
                 servers = servers,
                 onBackClick = { currentScreen = AppScreen.Settings },
-                onServersUpdate = { /* не используется */ },
                 preferencesManager = preferencesManager
-            )
+            ) // Убрали onServersUpdate
         }
     }
 }
