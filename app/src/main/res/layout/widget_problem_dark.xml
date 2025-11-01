@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/widget_background_dark"
+    android:padding="8dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_text_primary_dark"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:ellipsize="end"
+            android:maxLines="1" />
+
+        <!-- Простая кнопка обновления без иконки -->
+        <TextView
+            android:id="@+id/widget_refresh_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⟳"
+            android:textColor="@color/widget_accent_dark"
+            android:textSize="18sp"
+            android:padding="8dp" />
+
+    </LinearLayout>
+
+    <!-- Status and update info -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/widget_ack_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_text_secondary_dark"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_maint_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_text_secondary_dark"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_last_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/widget_text_secondary_dark"
+        android:textSize="10sp"
+        android:layout_marginTop="2dp" />
+
+    <!-- Problems list -->
+    <ListView
+        android:id="@+id/widget_problems_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@color/widget_divider_dark"
+        android:dividerHeight="1dp" />
+
+    <!-- Empty view -->
+    <TextView
+        android:id="@+id/widget_empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No problems"
+        android:textColor="@color/widget_text_secondary_dark"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:padding="16dp" />
+
+</LinearLayout>
