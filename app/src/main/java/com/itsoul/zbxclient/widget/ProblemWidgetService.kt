@@ -291,6 +291,7 @@ class ProblemWidgetService : JobIntentService() {
     }
 
 
+
     private suspend fun getRemoteViews(
         context: Context,
         appWidgetId: Int,
@@ -374,14 +375,15 @@ class ProblemWidgetService : JobIntentService() {
             )
             setOnClickPendingIntent(R.id.widget_maint_btn, maintPendingIntent)
 
-            // Обновляем текст и внешний вид кнопок с учетом состояния
+            // Обновляем текст кнопок с учетом состояния
             val ackText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "ack")
             val maintText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "maint")
 
-            setTextViewText(R.id.widget_ack_btn, "$ackText: ${if (showAck) "ON" else "OFF"}")
-            setTextViewText(R.id.widget_maint_btn, "$maintText: ${if (showMaint) "ON" else "OFF"}")
+            // УБРАНО: setTextViewText для кнопок (теперь это ImageView)
+            // setTextViewText(R.id.widget_ack_btn, "$ackText: ${if (showAck) "ON" else "OFF"}")
+            // setTextViewText(R.id.widget_maint_btn, "$maintText: ${if (showMaint) "ON" else "OFF"}")
 
-            // Визуальное отображение состояния фильтров для TextView
+            // Визуальное отображение состояния фильтров для ImageView
             val ackColor = if (showAck) {
                 if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK)
                     context.resources.getColor(R.color.widget_accent_dark, null)
@@ -406,9 +408,14 @@ class ProblemWidgetService : JobIntentService() {
                     context.resources.getColor(android.R.color.darker_gray, null)
             }
 
-            // Устанавливаем цвета для TextView
-            setTextColor(R.id.widget_ack_btn, ackColor)
-            setTextColor(R.id.widget_maint_btn, maintColor)
+            // Устанавливаем цвета для ImageView (color filter вместо text color)
+            setInt(R.id.widget_ack_btn, "setColorFilter", ackColor)
+            setInt(R.id.widget_maint_btn, "setColorFilter", maintColor)
+
+            if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK) {
+                val refreshColor = context.resources.getColor(R.color.widget_accent_dark, null)
+                setInt(R.id.widget_refresh_btn, "setColorFilter", refreshColor)
+            }
 
             // Обновляем обработчик кнопки обновления для принудительного обновления
             val refreshIntent = Intent(context, ProblemWidget::class.java).apply {
@@ -440,6 +447,7 @@ class ProblemWidgetService : JobIntentService() {
             Log.d("ProblemWidgetService", "RemoteViews setup complete for widget $appWidgetId")
         }
     }
+
 
 
     private suspend fun getTotalProblemsCount(context: Context, serverId: Long): Int {

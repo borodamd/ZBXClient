@@ -24,26 +24,25 @@
             android:maxLines="1"
             android:ellipsize="end" />
 
-        <!-- Компактные иконки фильтров - используем TextView -->
-        <TextView
+        <!-- Компактные иконки фильтров -->
+        <ImageView
             android:id="@+id/widget_ack_btn"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:text="A"
-            android:gravity="center"
-            android:textSize="14sp"
+            android:src="@android:drawable/checkbox_on_background"
             android:background="?android:attr/selectableItemBackground"
-            android:layout_marginEnd="4dp" />
+            android:contentDescription="Ack Filter"
+            android:layout_marginEnd="24dp" />  <!-- Большой отступ -->
 
-        <TextView
+        <ImageView
             android:id="@+id/widget_maint_btn"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:text="M"
-            android:gravity="center"
-            android:textSize="14sp"
+            android:src="@android:drawable/ic_menu_manage"
             android:background="?android:attr/selectableItemBackground"
-            android:layout_marginEnd="4dp" />
+            android:contentDescription="Maint Filter"
+            android:layout_marginEnd="24dp" />  <!-- Большой отступ -->
+
 
         <ImageButton
             android:id="@+id/widget_refresh_btn"
@@ -52,6 +51,7 @@
             android:src="@android:drawable/ic_menu_rotate"
             android:background="?android:attr/selectableItemBackground"
             android:contentDescription="Refresh" />
+
 
     </LinearLayout>
 
