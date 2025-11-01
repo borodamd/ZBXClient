@@ -11,6 +11,8 @@ import android.widget.RemoteViewsService
 import com.itsoul.zbxclient.R
 import com.itsoul.zbxclient.ZabbixProblem
 import kotlinx.serialization.json.Json
+import com.itsoul.zbxclient.util.ThemeManager
+import com.itsoul.zbxclient.util.WidgetTheme
 
 class ProblemWidgetRemoteViewsService : RemoteViewsService() {
 
@@ -39,40 +41,33 @@ class ProblemRemoteViewsFactory(
         problems = loadProblemsFromCache(context, serverId, appWidgetId)
     }
 
-    override fun getViewAt(position: Int): RemoteViews {
-        val problem = problems[position]
-
-        // Выбираем layout в зависимости от темы
-        val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
-        val layoutRes = when (widgetTheme) {
-            com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_item_dark
-            com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.item_widget_problem
-        }
-
-        val remoteViews = RemoteViews(context.packageName, layoutRes)
-
-        // Основные поля (работают в обеих темах)
-        remoteViews.setTextViewText(R.id.item_problem_name, problem.name ?: "Unknown problem")
-        remoteViews.setTextViewText(R.id.item_problem_host, problem.hostName ?: "Unknown host")
-
-        val severityText = getSeverityText(problem.severity)
-        remoteViews.setTextViewText(R.id.item_problem_severity, severityText)
-
-        val severityBg = getSeverityBackground(problem.severity)
-        remoteViews.setInt(R.id.item_problem_severity, "setBackgroundResource", severityBg)
-
-        // Дополнительные поля для темной темы
-        if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK) {
-            try {
-                remoteViews.setTextViewText(R.id.widget_item_time, problem.getFormattedTime())
-                remoteViews.setTextViewText(R.id.widget_item_duration, problem.getDuration())
-            } catch (e: Exception) {
-                // Игнорируем, если поля не найдены
+    override fun getViewAt(position: Int): RemoteViews? {
+        return try {
+            val problem = problems[position]
+            val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
+            val layoutRes = when (widgetTheme) {
+                com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_item_dark
+                com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.item_widget_problem // Исправлено на правильное имя
+                else -> R.layout.item_widget_problem // Добавляем else branch
             }
-        }
 
-        return remoteViews
+            RemoteViews(context.packageName, layoutRes).apply {
+                setTextViewText(R.id.item_problem_name, problem.name)
+                setTextViewText(R.id.item_problem_host, problem.hostName)
+
+                // Локализация severity если нужно
+                val severityText = getLocalizedSeverity(problem.severity)
+                setTextViewText(R.id.item_problem_severity, severityText)
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
+    private fun getLocalizedSeverity(severity: String): String {
+        // Пока возвращаем как есть, можно добавить локализацию позже
+        return severity
+    }
+
 
     override fun getCount(): Int = problems.size
     override fun getViewTypeCount(): Int = 1

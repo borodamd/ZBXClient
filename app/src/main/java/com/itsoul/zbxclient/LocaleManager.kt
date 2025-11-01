@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
 import java.util.*
+import android.content.Intent
 
 object LocaleManager {
     private const val PREFS_NAME = "settings"
@@ -25,7 +26,9 @@ object LocaleManager {
 
     fun setLocale(context: Context, language: AppLanguage): Context {
         persistLanguage(context, language)
-        return updateResources(context, language)
+        val newContext = updateResources(context, language)
+        notifyLanguageChanged(context) // Уведомляем виджеты
+        return newContext
     }
 
     fun getSavedLanguage(context: Context): AppLanguage {
@@ -92,4 +95,10 @@ object LocaleManager {
             context.resources.configuration.locale
         }
     }
+
+    fun notifyLanguageChanged(context: Context) {
+        val intent = Intent("com.itsoul.zbxclient.LANGUAGE_CHANGED")
+        context.sendBroadcast(intent)
+    }
+
 }

@@ -31,7 +31,7 @@ class ProblemWidgetService : JobIntentService() {
     companion object {
         const val ACTION_UPDATE_ALL_WIDGETS = "update_all_widgets"
         const val ACTION_UPDATE_WIDGET = "update_widget"
-        const val ACTION_FORCE_REFRESH = "force_refresh" // Добавили новое действие
+        const val ACTION_FORCE_REFRESH = "force_refresh"
         const val EXTRA_SERVER_ID = "server_id"
         const val WIDGET_PREF_NAME = "problem_widget_prefs"
         const val PREF_SERVER_ID = "server_id_"
@@ -70,7 +70,6 @@ class ProblemWidgetService : JobIntentService() {
         }
     }
 
-    // НОВЫЙ МЕТОД: Принудительное обновление с очисткой кэша
     private suspend fun forceRefreshWidget(context: Context, appWidgetId: Int) {
         Log.d("ProblemWidgetService", "Force refreshing widget $appWidgetId")
 
@@ -78,16 +77,13 @@ class ProblemWidgetService : JobIntentService() {
         val serverId = prefs.getLong("$PREF_SERVER_ID$appWidgetId", -1)
 
         if (serverId != -1L) {
-            // Очищаем кэш для этого сервера
             clearCacheForServer(context, serverId)
             Log.d("ProblemWidgetService", "Cleared cache for server $serverId")
         }
 
-        // Обновляем виджет
         updateAppWidget(context, appWidgetId)
     }
 
-    // НОВЫЙ МЕТОД: Очистка кэша для конкретного сервера
     private fun clearCacheForServer(context: Context, serverId: Long) {
         try {
             val cachePrefs = context.getSharedPreferences("problems_cache", Context.MODE_PRIVATE)
@@ -146,7 +142,6 @@ class ProblemWidgetService : JobIntentService() {
                 Log.d("ProblemWidgetService", "Found cached problems for server $serverId")
                 val cachedProblems = Json.decodeFromString<List<ZabbixProblem>>(problemsJson)
 
-                // Проверяем, не являются ли это тестовыми данными
                 if (isTestData(cachedProblems)) {
                     Log.d("ProblemWidgetService", "Found test data in cache, loading from API")
                     loadProblemsFromApi(context, serverId)
@@ -173,14 +168,13 @@ class ProblemWidgetService : JobIntentService() {
         }
     }
 
-    // Проверяем, являются ли данные тестовыми
     private fun isTestData(problems: List<ZabbixProblem>): Boolean {
         return problems.any { problem ->
             problem.name.contains("Test Problem", ignoreCase = true) ||
                     problem.hostName.contains("Test Host", ignoreCase = true) ||
                     problem.eventid.startsWith("test_") ||
-                    problem.hostName.contains("Server-0") || // Тестовые хосты из вашего кода
-                    problem.name.contains("High CPU Usage on Server-01") || // Конкретные тестовые проблемы
+                    problem.hostName.contains("Server-0") ||
+                    problem.name.contains("High CPU Usage on Server-01") ||
                     problem.name.contains("Low Disk Space on Server-02") ||
                     problem.name.contains("Network Latency Issue")
         }
@@ -201,37 +195,30 @@ class ProblemWidgetService : JobIntentService() {
                 return emptyList()
             }
 
-            // Загружаем реальные данные
             val problems = loadRealProblemsUsingRepository(server)
             Log.d("ProblemWidgetService", "Loaded ${problems.size} REAL problems from API")
 
-            // Кэшируем только реальные данные
             cacheProblems(context, serverId, problems)
             problems
         } catch (e: Exception) {
             Log.e("ProblemWidgetService", "Error loading REAL problems from API", e)
-
-            // В случае ошибки возвращаем пустой список вместо тестовых данных
             emptyList()
         }
     }
 
-    // Используем существующий ZabbixRepository
     private suspend fun loadRealProblemsUsingRepository(server: ZabbixServer): List<ZabbixProblem> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d("ProblemWidgetService", "Using ZabbixRepository for server: ${server.url}")
 
                 val repository = ZabbixRepository()
-
-                // Используем метод, который уже работает в основном приложении
                 val problems = repository.getProblemsWithHostNames(server.url, server.apiKey)
 
                 Log.d("ProblemWidgetService", "Successfully loaded ${problems.size} problems using ZabbixRepository")
                 problems
             } catch (e: Exception) {
                 Log.e("ProblemWidgetService", "Failed to load problems using ZabbixRepository: ${e.message}", e)
-                throw e // Пробрасываем исключение дальше
+                throw e
             }
         }
     }
@@ -259,22 +246,35 @@ class ProblemWidgetService : JobIntentService() {
         val layoutRes = when (widgetTheme) {
             com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_dark
             com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.widget_problem
+            else -> R.layout.widget_problem
         }
 
         return RemoteViews(context.packageName, layoutRes).apply {
             val serverName = getServerName(context, serverId)
 
-            // Отображаем "No Data" если список пустой
+            // Используем локализованные строки для виджетов
+            val noDataText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "no_active_problems")
+            val lastUpdateText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "widget_last_update")
+            val problemsText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "widget_problems_count")
+            val ackText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "ack")
+            val maintText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "maint")
+            val unknownServerText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "unknown_server")
+
+            // Получаем локаль для форматирования даты
+            val locale = com.itsoul.zbxclient.util.WidgetLocaleManager.getWidgetLocale(context)
+            val timeText = SimpleDateFormat("HH:mm", locale).format(Date())
+
+            // Отображаем локализованные тексты
             if (problems.isEmpty()) {
-                setTextViewText(R.id.widget_title, "${serverName ?: "Server"} - No Data")
-                setTextViewText(R.id.widget_last_update, "Last update: ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())} - No problems")
+                setTextViewText(R.id.widget_title, "${serverName ?: "Server"} - $noDataText")
+                setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - $noDataText")
             } else {
-                setTextViewText(R.id.widget_title, serverName ?: "Unknown Server")
-                setTextViewText(R.id.widget_last_update, "Last update: ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())} - ${problems.size} problems")
+                setTextViewText(R.id.widget_title, serverName ?: unknownServerText)
+                setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - ${problems.size} $problemsText")
             }
 
-            setTextViewText(R.id.widget_ack_status, if (showAck) "Ack: ON" else "Ack: OFF")
-            setTextViewText(R.id.widget_maint_status, if (showMaint) "Maint: ON" else "Maint: OFF")
+            setTextViewText(R.id.widget_ack_status, "$ackText: ${if (showAck) "ON" else "OFF"}")
+            setTextViewText(R.id.widget_maint_status, "$maintText: ${if (showMaint) "ON" else "OFF"}")
 
             // Обновляем обработчик кнопки обновления для принудительного обновления
             val refreshIntent = Intent(context, ProblemWidgetService::class.java).apply {
@@ -299,14 +299,21 @@ class ProblemWidgetService : JobIntentService() {
             setEmptyView(R.id.widget_problems_list, R.id.widget_empty_view)
         }
     }
+
     private fun getEmptyRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
         val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
         val layoutRes = when (widgetTheme) {
             com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_empty_dark
             com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.widget_problem_empty
+            else -> R.layout.widget_problem_empty
         }
 
         return RemoteViews(context.packageName, layoutRes).apply {
+            val configureText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "configure_widget")
+
+            // Если в макете есть TextView с id widget_empty_text, раскомментируйте:
+            // setTextViewText(R.id.widget_empty_text, configureText)
+
             val configIntent = Intent(context, ProblemWidgetConfigureActivity::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
@@ -319,6 +326,7 @@ class ProblemWidgetService : JobIntentService() {
             setOnClickPendingIntent(R.id.widget_empty_container, configPendingIntent)
         }
     }
+
     private fun getServerName(context: Context, serverId: Long): String? {
         return try {
             ServerCacheManager.getServerName(context, serverId) ?: "Server $serverId"

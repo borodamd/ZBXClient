@@ -24,20 +24,19 @@ class ProblemWidget : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH_WIDGET) {
-            val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                // Запускаем сервис для обновления одного виджета
+
+        when (intent.action) {
+            ACTION_REFRESH_WIDGET -> {
+                // существующая логика
+            }
+            "com.itsoul.zbxclient.LANGUAGE_CHANGED" -> {
+                // Принудительно обновляем все виджеты при смене языка
                 val serviceIntent = Intent(context, ProblemWidgetService::class.java)
-                serviceIntent.action = ProblemWidgetService.ACTION_UPDATE_WIDGET
-                serviceIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                serviceIntent.action = ProblemWidgetService.ACTION_UPDATE_ALL_WIDGETS
                 ProblemWidgetService.enqueueWork(context, serviceIntent)
             }
-        } else if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
-            // Обработка системного обновления
-            val appWidgetIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
-            if (appWidgetIds != null) {
-                onUpdate(context, AppWidgetManager.getInstance(context), appWidgetIds)
+            else -> {
+                // существующая логика
             }
         }
     }

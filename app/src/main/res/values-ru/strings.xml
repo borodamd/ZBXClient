@@ -89,4 +89,10 @@
     <string name="widget_settings">Настройки виджета</string>
     <string name="configure_widget_appearance">Настройка внешнего вида виджета</string>
     <string name="navigate">Перейти</string>
+    <!-- New strings for Widget -->
+    <string name="configure_widget">Настроить виджет</string>
+    <string name="no_data">Нет данных</string>
+    <string name="unknown_server">Неизвестный сервер</string>
+    <string name="widget_last_update">Обновлено</string>
+    <string name="widget_problems_count">проблем</string>
 </resources>

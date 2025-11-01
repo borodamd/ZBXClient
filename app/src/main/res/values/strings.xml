@@ -89,4 +89,12 @@
     <string name="update">Update</string>
     <string name="token_saved_hint">Token is saved (enter new value to change)</string>
     <string name="delete_server">Delete Server</string>
+
+    <!-- New strings for Widget -->
+    <string name="configure_widget">Configure Widget</string>
+    <string name="no_data">No Data</string>
+    <string name="unknown_server">Unknown Server</string>
+    <string name="widget_last_update">Last update</string>
+    <string name="widget_problems_count">problems</string>
+
 </resources>
