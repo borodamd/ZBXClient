@@ -2,6 +2,7 @@
 package com.itsoul.zbxclient
 
 import android.content.Context
+import android.content.Intent  // Добавьте этот импорт
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +17,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.InternalSerializationApi
+import com.itsoul.zbxclient.widget.ProblemWidgetService
+
+// Добавьте эти импорты:
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -33,6 +40,9 @@ class PreferencesManager(private val context: Context) {
         val SHOW_ACKNOWLEDGED = booleanPreferencesKey("show_acknowledged")
         val SHOW_IN_MAINTENANCE = booleanPreferencesKey("show_in_maintenance")
         val SERVERS = stringPreferencesKey("servers")
+
+        // Добавим ключ для хранения темы как строки (для совместимости с ThemeManager)
+        val THEME = stringPreferencesKey("theme")
     }
 
     // Метод для получения настроек приложения
@@ -46,12 +56,63 @@ class PreferencesManager(private val context: Context) {
         )
     }
 
-    // Сохранить тему
+    // Сохранить тему (без вызова ThemeManager.saveTheme)
     suspend fun saveTheme(theme: AppTheme) {
         context.dataStore.edit { preferences ->
             preferences[PreferenceKeys.THEME_MODE] = theme.ordinal
+            preferences[PreferenceKeys.THEME] = theme.name
+        }
+
+        // Применяем тему через ThemeManager (без рекурсии)
+        com.itsoul.zbxclient.util.ThemeManager.applyTheme(theme)
+
+        // Уведомляем об изменении темы
+        notifyThemeChanged()
+    }
+
+    // Альтернативный метод для получения темы как Flow
+    fun getThemeFlow(): Flow<AppTheme> = context.dataStore.data.map { preferences ->
+        try {
+            val themeName = preferences[PreferenceKeys.THEME] ?: AppTheme.SYSTEM.name
+            AppTheme.valueOf(themeName)
+        } catch (e: Exception) {
+            AppTheme.SYSTEM
         }
     }
+
+    // Упрощенный метод для получения темы (без Flow)
+    suspend fun getCurrentTheme(): AppTheme {
+        return try {
+            context.dataStore.data
+                .map { preferences ->
+                    val themeName = preferences[PreferenceKeys.THEME] ?: AppTheme.SYSTEM.name
+                    AppTheme.valueOf(themeName)
+                }
+                .first()
+        } catch (e: Exception) {
+            AppTheme.SYSTEM
+        }
+    }
+
+    /**
+     * Уведомляет виджеты об изменении темы
+     */
+
+
+    private fun notifyThemeChanged() {
+        Log.d("PreferencesManager", "Theme changed - updating widgets directly")
+
+        try {
+            // Прямое обновление всех виджетов через ProblemWidgetService
+            val updateIntent = Intent(context, Class.forName("com.itsoul.zbxclient.widget.ProblemWidgetService"))
+            updateIntent.action = "update_all_widgets"
+            ProblemWidgetService.enqueueWork(context, updateIntent)
+            Log.d("PreferencesManager", "Widget update requested")
+        } catch (e: Exception) {
+            Log.e("PreferencesManager", "Error updating widgets", e)
+        }
+    }
+
 
     // Сохранить состояние дашборда
     suspend fun saveDashboardState(state: DashboardState) {

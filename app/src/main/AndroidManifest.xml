@@ -59,6 +59,13 @@
             android:name=".widget.ProblemWidgetRemoteViewsService"
             android:permission="android.permission.BIND_REMOTEVIEWS"
             android:exported="false" />
-
+        <receiver
+            android:name=".widget.ThemeChangeReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.itsoul.zbxclient.THEME_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

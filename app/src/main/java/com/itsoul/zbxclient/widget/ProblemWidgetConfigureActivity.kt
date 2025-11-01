@@ -22,6 +22,7 @@ import com.itsoul.zbxclient.ZabbixProblem
 import com.itsoul.zbxclient.ZabbixRepository
 import com.itsoul.zbxclient.ZabbixServer
 import com.itsoul.zbxclient.util.ServerCacheManager
+import com.itsoul.zbxclient.util.ThemeManager // Добавьте этот импорт
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,6 +46,9 @@ class ProblemWidgetConfigureActivity : Activity() {
     private var serversList: List<ZabbixServer> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Применяем тему ДО setContentView
+        applyTheme()
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_widget_configure)
         Log.d("ProblemWidgetConfig", "onCreate")
@@ -73,6 +77,29 @@ class ProblemWidgetConfigureActivity : Activity() {
         loadServersAsync()
     }
 
+    // Метод для применения темы
+    private fun applyTheme() {
+        val currentTheme = ThemeManager.getCurrentTheme(this)
+        ThemeManager.applyTheme(currentTheme)
+
+        // Используем стандартные темы Android
+        when (currentTheme) {
+            com.itsoul.zbxclient.AppTheme.LIGHT -> setTheme(android.R.style.Theme_Material_Light_DarkActionBar)
+            com.itsoul.zbxclient.AppTheme.DARK -> setTheme(android.R.style.Theme_Material)
+            com.itsoul.zbxclient.AppTheme.SYSTEM -> {
+                // Для системной темы определяем текущий режим
+                val isDarkTheme = when (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) {
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
+                    else -> false
+                }
+                if (isDarkTheme) {
+                    setTheme(android.R.style.Theme_Material)
+                } else {
+                    setTheme(android.R.style.Theme_Material_Light_DarkActionBar)
+                }
+            }
+        }
+    }
     private fun loadServersAsync() {
         loadJob = coroutineScope.launch {
             try {

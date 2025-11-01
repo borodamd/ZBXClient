@@ -4,6 +4,8 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.itsoul.zbxclient.R
@@ -40,19 +42,34 @@ class ProblemRemoteViewsFactory(
     override fun getViewAt(position: Int): RemoteViews {
         val problem = problems[position]
 
-        val remoteViews = RemoteViews(context.packageName, R.layout.item_widget_problem)
+        // Выбираем layout в зависимости от темы
+        val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
+        val layoutRes = when (widgetTheme) {
+            com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_item_dark
+            com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.item_widget_problem
+        }
 
-        // Устанавливаем текст
+        val remoteViews = RemoteViews(context.packageName, layoutRes)
+
+        // Основные поля (работают в обеих темах)
         remoteViews.setTextViewText(R.id.item_problem_name, problem.name ?: "Unknown problem")
         remoteViews.setTextViewText(R.id.item_problem_host, problem.hostName ?: "Unknown host")
 
-        // Преобразуем числовой severity в текстовое название и устанавливаем
         val severityText = getSeverityText(problem.severity)
         remoteViews.setTextViewText(R.id.item_problem_severity, severityText)
 
-        // Настраиваем цвет в зависимости от severity
         val severityBg = getSeverityBackground(problem.severity)
         remoteViews.setInt(R.id.item_problem_severity, "setBackgroundResource", severityBg)
+
+        // Дополнительные поля для темной темы
+        if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK) {
+            try {
+                remoteViews.setTextViewText(R.id.widget_item_time, problem.getFormattedTime())
+                remoteViews.setTextViewText(R.id.widget_item_duration, problem.getDuration())
+            } catch (e: Exception) {
+                // Игнорируем, если поля не найдены
+            }
+        }
 
         return remoteViews
     }
@@ -85,6 +102,19 @@ class ProblemRemoteViewsFactory(
             "4" -> R.drawable.severity_high_bg         // High
             "5" -> R.drawable.severity_disaster_bg     // Disaster
             else -> R.drawable.severity_information_bg // Information/Not classified
+        }
+    }
+
+    // Функция для получения цвета severity (для динамического создания drawable)
+    private fun getSeverityColor(severity: String?): Int {
+        return when (severity) {
+            "0" -> Color.parseColor("#97AAB3") // Not classified - серый
+            "1" -> Color.parseColor("#7499FF") // Information - синий
+            "2" -> Color.parseColor("#FFC859") // Warning - желтый
+            "3" -> Color.parseColor("#FFA059") // Average - оранжевый
+            "4" -> Color.parseColor("#E97659") // High - красно-оранжевый
+            "5" -> Color.parseColor("#E45959") // Disaster - красный
+            else -> Color.parseColor("#97AAB3") // По умолчанию - серый
         }
     }
 }

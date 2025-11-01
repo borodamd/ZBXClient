@@ -89,13 +89,19 @@ fun GeneralSettingsScreen(
     appState: AppState
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // Используем State для отслеживания текущей темы
+    var currentTheme by remember {
+        mutableStateOf(com.itsoul.zbxclient.util.ThemeManager.getCurrentTheme(context))
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Секция настроек языка
+        // Секция настроек языка (ВОССТАНОВЛЕНА)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -110,32 +116,32 @@ fun GeneralSettingsScreen(
                 )
 
                 val languages = appState.getAvailableLanguages()
-                var expanded by remember { mutableStateOf(false) }
+                var languageExpanded by remember { mutableStateOf(false) }
 
                 ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
+                    expanded = languageExpanded,
+                    onExpandedChange = { languageExpanded = !languageExpanded }
                 ) {
                     TextField(
-                        value = LocaleManager.getDisplayName(appState.currentLanguage, LocalContext.current),
+                        value = LocaleManager.getDisplayName(appState.currentLanguage, context),
                         onValueChange = {},
                         readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor()
                     )
 
                     ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                        expanded = languageExpanded,
+                        onDismissRequest = { languageExpanded = false }
                     ) {
                         languages.forEach { language ->
                             DropdownMenuItem(
-                                text = { Text(LocaleManager.getDisplayName(language, LocalContext.current)) },
+                                text = { Text(LocaleManager.getDisplayName(language, context)) },
                                 onClick = {
                                     appState.setLanguage(language)
-                                    expanded = false
+                                    languageExpanded = false
                                 }
                             )
                         }
@@ -159,7 +165,8 @@ fun GeneralSettingsScreen(
                 )
 
                 var themeExpanded by remember { mutableStateOf(false) }
-                val currentThemeName = when (appSettings.theme) {
+
+                val currentThemeName = when (currentTheme) {
                     AppTheme.LIGHT -> stringResource(R.string.theme_light)
                     AppTheme.DARK -> stringResource(R.string.theme_dark)
                     AppTheme.SYSTEM -> stringResource(R.string.theme_system)
@@ -188,6 +195,7 @@ fun GeneralSettingsScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     preferencesManager.saveTheme(AppTheme.LIGHT)
+                                    currentTheme = AppTheme.LIGHT
                                 }
                                 themeExpanded = false
                             }
@@ -197,6 +205,7 @@ fun GeneralSettingsScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     preferencesManager.saveTheme(AppTheme.DARK)
+                                    currentTheme = AppTheme.DARK
                                 }
                                 themeExpanded = false
                             }
@@ -206,6 +215,7 @@ fun GeneralSettingsScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     preferencesManager.saveTheme(AppTheme.SYSTEM)
+                                    currentTheme = AppTheme.SYSTEM
                                 }
                                 themeExpanded = false
                             }
@@ -216,7 +226,6 @@ fun GeneralSettingsScreen(
         }
     }
 }
-
 @Composable
 fun AdvancedSettingsScreen(
     onServersClick: () -> Unit

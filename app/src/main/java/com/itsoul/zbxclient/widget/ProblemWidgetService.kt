@@ -255,7 +255,13 @@ class ProblemWidgetService : JobIntentService() {
         showAck: Boolean,
         showMaint: Boolean
     ): RemoteViews {
-        return RemoteViews(context.packageName, R.layout.widget_problem).apply {
+        val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
+        val layoutRes = when (widgetTheme) {
+            com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_dark
+            com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.widget_problem
+        }
+
+        return RemoteViews(context.packageName, layoutRes).apply {
             val serverName = getServerName(context, serverId)
 
             // Отображаем "No Data" если список пустой
@@ -293,9 +299,14 @@ class ProblemWidgetService : JobIntentService() {
             setEmptyView(R.id.widget_problems_list, R.id.widget_empty_view)
         }
     }
-
     private fun getEmptyRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
-        return RemoteViews(context.packageName, R.layout.widget_problem_empty).apply {
+        val widgetTheme = com.itsoul.zbxclient.util.ThemeManager.getWidgetTheme(context)
+        val layoutRes = when (widgetTheme) {
+            com.itsoul.zbxclient.util.WidgetTheme.DARK -> R.layout.widget_problem_empty_dark
+            com.itsoul.zbxclient.util.WidgetTheme.LIGHT -> R.layout.widget_problem_empty
+        }
+
+        return RemoteViews(context.packageName, layoutRes).apply {
             val configIntent = Intent(context, ProblemWidgetConfigureActivity::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
@@ -308,7 +319,6 @@ class ProblemWidgetService : JobIntentService() {
             setOnClickPendingIntent(R.id.widget_empty_container, configPendingIntent)
         }
     }
-
     private fun getServerName(context: Context, serverId: Long): String? {
         return try {
             ServerCacheManager.getServerName(context, serverId) ?: "Server $serverId"
