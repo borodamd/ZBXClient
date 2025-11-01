@@ -6,7 +6,7 @@
     android:background="@color/widget_background_dark"
     android:padding="8dp">
 
-    <!-- Header -->
+    <!-- Header с компактными иконками -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -24,7 +24,28 @@
             android:ellipsize="end"
             android:maxLines="1" />
 
-        <!-- Простая кнопка обновления без иконки -->
+        <!-- Компактные иконки фильтров - используем TextView -->
+        <TextView
+            android:id="@+id/widget_ack_btn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="A"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/widget_maint_btn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="M"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Кнопка обновления -->
         <TextView
             android:id="@+id/widget_refresh_btn"
             android:layout_width="wrap_content"
@@ -37,30 +58,6 @@
     </LinearLayout>
 
     <!-- Status and update info -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp">
-
-        <TextView
-            android:id="@+id/widget_ack_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/widget_text_secondary_dark"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/widget_maint_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/widget_text_secondary_dark"
-            android:textSize="12sp" />
-
-    </LinearLayout>
-
     <TextView
         android:id="@+id/widget_last_update"
         android:layout_width="match_parent"

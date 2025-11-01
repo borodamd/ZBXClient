@@ -46,8 +46,19 @@ object WidgetLocaleManager {
                 context.resources.getString(resourceId, *formatArgs)
             }
         } else {
-            // Fallback to English
-            stringResName
+            // Fallback для случаев, когда ресурс не найден по имени
+            getFallbackString(context, stringResName)
+        }
+    }
+
+    private fun getFallbackString(context: Context, stringResName: String): String {
+        // Используем when для fallback-значений
+        return when (stringResName) {
+            "ack" -> "Ack"
+            "maint" -> "Maint"
+            "filter_on" -> "ON"
+            "filter_off" -> "OFF"
+            else -> stringResName // Возвращаем исходное имя как fallback
         }
     }
 

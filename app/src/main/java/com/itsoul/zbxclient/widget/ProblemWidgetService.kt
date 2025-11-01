@@ -32,6 +32,8 @@ class ProblemWidgetService : JobIntentService() {
         const val ACTION_UPDATE_ALL_WIDGETS = "update_all_widgets"
         const val ACTION_UPDATE_WIDGET = "update_widget"
         const val ACTION_FORCE_REFRESH = "force_refresh"
+        const val ACTION_TOGGLE_ACK = "toggle_ack"
+        const val ACTION_TOGGLE_MAINT = "toggle_maint"
         const val EXTRA_SERVER_ID = "server_id"
         const val WIDGET_PREF_NAME = "problem_widget_prefs"
         const val PREF_SERVER_ID = "server_id_"
@@ -53,21 +55,76 @@ class ProblemWidgetService : JobIntentService() {
             when (intent.action) {
                 ACTION_UPDATE_WIDGET -> {
                     val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                    Log.d("ProblemWidgetService", "ACTION_UPDATE_WIDGET for id: $appWidgetId")
                     if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                         updateAppWidget(this@ProblemWidgetService, appWidgetId)
                     }
+                    // Добавляем Unit в конец
+                    Unit
                 }
                 ACTION_FORCE_REFRESH -> {
                     val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                    Log.d("ProblemWidgetService", "ACTION_FORCE_REFRESH for id: $appWidgetId")
                     if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                         forceRefreshWidget(this@ProblemWidgetService, appWidgetId)
                     }
+                    Unit
                 }
                 ACTION_UPDATE_ALL_WIDGETS -> {
+                    Log.d("ProblemWidgetService", "ACTION_UPDATE_ALL_WIDGETS")
                     updateAllAppWidgets(this@ProblemWidgetService)
+                    Unit
+                }
+                ACTION_TOGGLE_ACK -> {
+                    val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                    Log.d("ProblemWidgetService", "ACTION_TOGGLE_ACK for id: $appWidgetId")
+                    if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                        toggleAckFilter(this@ProblemWidgetService, appWidgetId)
+                    }
+                    Unit
+                }
+                ACTION_TOGGLE_MAINT -> {
+                    val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                    Log.d("ProblemWidgetService", "ACTION_TOGGLE_MAINT for id: $appWidgetId")
+                    if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                        toggleMaintFilter(this@ProblemWidgetService, appWidgetId)
+                    }
+                    Unit
+                }
+                else -> {
+                    Log.d("ProblemWidgetService", "Unknown action: ${intent.action}")
+                    Unit
                 }
             }
         }
+    }
+
+    private suspend fun toggleAckFilter(context: Context, appWidgetId: Int) {
+        Log.d("ProblemWidgetService", "toggleAckFilter for widget: $appWidgetId")
+
+        val prefs = context.getSharedPreferences(WIDGET_PREF_NAME, Context.MODE_PRIVATE)
+        val currentAck = prefs.getBoolean("$PREF_SHOW_ACK$appWidgetId", false)
+        val newAck = !currentAck
+        prefs.edit().putBoolean("$PREF_SHOW_ACK$appWidgetId", newAck).apply()
+
+        Log.d("ProblemWidgetService", "Ack filter changed from $currentAck to $newAck for widget $appWidgetId")
+
+        // Принудительно обновляем виджет
+        updateAppWidget(context, appWidgetId)
+    }
+
+    private suspend fun toggleMaintFilter(context: Context, appWidgetId: Int) {
+        Log.d("ProblemWidgetService", "toggleMaintFilter for widget: $appWidgetId")
+
+        val prefs = context.getSharedPreferences(WIDGET_PREF_NAME, Context.MODE_PRIVATE)
+        val currentMaint = prefs.getBoolean("$PREF_SHOW_MAINT$appWidgetId", false)
+        val newMaint = !currentMaint
+        prefs.edit().putBoolean("$PREF_SHOW_MAINT$appWidgetId", newMaint).apply()
+
+        Log.d("ProblemWidgetService", "Maint filter changed from $currentMaint to $newMaint for widget $appWidgetId")
+
+        // Принудительно обновляем виджет
+        updateAppWidget(context, appWidgetId)
     }
 
     private suspend fun forceRefreshWidget(context: Context, appWidgetId: Int) {
@@ -132,7 +189,6 @@ class ProblemWidgetService : JobIntentService() {
         manager.updateAppWidget(appWidgetId, views)
         Log.d("ProblemWidgetService", "Widget $appWidgetId updated successfully")
     }
-
     private suspend fun loadProblemsFromCache(context: Context, serverId: Long, appWidgetId: Int): List<ZabbixProblem> {
         return try {
             val cachePrefs = context.getSharedPreferences("problems_cache", Context.MODE_PRIVATE)
@@ -234,7 +290,8 @@ class ProblemWidgetService : JobIntentService() {
         }
     }
 
-    private fun getRemoteViews(
+
+    private suspend fun getRemoteViews(
         context: Context,
         appWidgetId: Int,
         serverId: Long,
@@ -249,6 +306,12 @@ class ProblemWidgetService : JobIntentService() {
             else -> R.layout.widget_problem
         }
 
+        Log.d("ProblemWidgetService", "Using layout: $layoutRes for widget $appWidgetId")
+
+        // Получаем общее количество проблем (до фильтрации)
+        val totalProblemsCount = getTotalProblemsCount(context, serverId)
+        val filteredProblemsCount = problems.size
+
         return RemoteViews(context.packageName, layoutRes).apply {
             val serverName = getServerName(context, serverId)
 
@@ -256,32 +319,103 @@ class ProblemWidgetService : JobIntentService() {
             val noDataText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "no_active_problems")
             val lastUpdateText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "widget_last_update")
             val problemsText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "widget_problems_count")
-            val ackText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "ack")
-            val maintText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "maint")
             val unknownServerText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "unknown_server")
 
             // Получаем локаль для форматирования даты
             val locale = com.itsoul.zbxclient.util.WidgetLocaleManager.getWidgetLocale(context)
             val timeText = SimpleDateFormat("HH:mm", locale).format(Date())
 
-            // Отображаем локализованные тексты
+            // Форматируем текст в зависимости от наличия проблем
             if (problems.isEmpty()) {
-                setTextViewText(R.id.widget_title, "${serverName ?: "Server"} - $noDataText")
-                setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - $noDataText")
+                if (totalProblemsCount == 0) {
+                    // Нет проблем вообще
+                    setTextViewText(R.id.widget_title, "${serverName ?: "Server"} - $noDataText")
+                    setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText")
+                } else {
+                    // Есть проблемы, но все отфильтрованы
+                    setTextViewText(R.id.widget_title, "${serverName ?: "Server"} - 0 из $totalProblemsCount")
+                    setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - все проблемы скрыты фильтрами")
+                }
             } else {
-                setTextViewText(R.id.widget_title, serverName ?: unknownServerText)
-                setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - ${problems.size} $problemsText")
+                // Есть отфильтрованные проблемы
+                if (filteredProblemsCount == totalProblemsCount) {
+                    // Все проблемы видны (фильтры не активны)
+                    setTextViewText(R.id.widget_title, serverName ?: unknownServerText)
+                    setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText - $filteredProblemsCount $problemsText")
+                } else {
+                    // Часть проблем скрыта фильтрами
+                    setTextViewText(R.id.widget_title, "${serverName ?: unknownServerText} - $filteredProblemsCount из $totalProblemsCount")
+                    setTextViewText(R.id.widget_last_update, "$lastUpdateText $timeText")
+                }
             }
 
-            setTextViewText(R.id.widget_ack_status, "$ackText: ${if (showAck) "ON" else "OFF"}")
-            setTextViewText(R.id.widget_maint_status, "$maintText: ${if (showMaint) "ON" else "OFF"}")
-
-            // Обновляем обработчик кнопки обновления для принудительного обновления
-            val refreshIntent = Intent(context, ProblemWidgetService::class.java).apply {
-                action = ACTION_FORCE_REFRESH
+            // Обработчики для иконок фильтров - используем BROADCAST
+            val ackIntent = Intent(context, ProblemWidget::class.java).apply {
+                action = "com.itsoul.zbxclient.ACTION_TOGGLE_ACK"
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
-            val refreshPendingIntent = PendingIntent.getService(
+            val ackPendingIntent = PendingIntent.getBroadcast(
+                context,
+                appWidgetId * 10 + 1, // Уникальный requestCode
+                ackIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setOnClickPendingIntent(R.id.widget_ack_btn, ackPendingIntent)
+
+            val maintIntent = Intent(context, ProblemWidget::class.java).apply {
+                action = "com.itsoul.zbxclient.ACTION_TOGGLE_MAINT"
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            val maintPendingIntent = PendingIntent.getBroadcast(
+                context,
+                appWidgetId * 10 + 2, // Уникальный requestCode
+                maintIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setOnClickPendingIntent(R.id.widget_maint_btn, maintPendingIntent)
+
+            // Обновляем текст и внешний вид кнопок с учетом состояния
+            val ackText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "ack")
+            val maintText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "maint")
+
+            setTextViewText(R.id.widget_ack_btn, "$ackText: ${if (showAck) "ON" else "OFF"}")
+            setTextViewText(R.id.widget_maint_btn, "$maintText: ${if (showMaint) "ON" else "OFF"}")
+
+            // Визуальное отображение состояния фильтров для TextView
+            val ackColor = if (showAck) {
+                if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK)
+                    context.resources.getColor(R.color.widget_accent_dark, null)
+                else
+                    context.resources.getColor(R.color.purple_500, null)
+            } else {
+                if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK)
+                    context.resources.getColor(R.color.widget_text_secondary_dark, null)
+                else
+                    context.resources.getColor(android.R.color.darker_gray, null)
+            }
+
+            val maintColor = if (showMaint) {
+                if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK)
+                    context.resources.getColor(R.color.widget_accent_dark, null)
+                else
+                    context.resources.getColor(R.color.purple_500, null)
+            } else {
+                if (widgetTheme == com.itsoul.zbxclient.util.WidgetTheme.DARK)
+                    context.resources.getColor(R.color.widget_text_secondary_dark, null)
+                else
+                    context.resources.getColor(android.R.color.darker_gray, null)
+            }
+
+            // Устанавливаем цвета для TextView
+            setTextColor(R.id.widget_ack_btn, ackColor)
+            setTextColor(R.id.widget_maint_btn, maintColor)
+
+            // Обновляем обработчик кнопки обновления для принудительного обновления
+            val refreshIntent = Intent(context, ProblemWidget::class.java).apply {
+                action = "com.itsoul.zbxclient.ACTION_FORCE_REFRESH"
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            val refreshPendingIntent = PendingIntent.getBroadcast(
                 context,
                 appWidgetId,
                 refreshIntent,
@@ -289,6 +423,7 @@ class ProblemWidgetService : JobIntentService() {
             )
             setOnClickPendingIntent(R.id.widget_refresh_btn, refreshPendingIntent)
 
+            // Принудительно обновляем адаптер списка
             val adapterIntent = Intent(context, ProblemWidgetRemoteViewsService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra(EXTRA_SERVER_ID, serverId)
@@ -296,7 +431,42 @@ class ProblemWidgetService : JobIntentService() {
             }
             setRemoteAdapter(R.id.widget_problems_list, adapterIntent)
 
+            // Устанавливаем пустое view
             setEmptyView(R.id.widget_problems_list, R.id.widget_empty_view)
+
+            // Принудительно уведомляем об изменении данных
+            notifyAppWidgetViewDataChanged(context, appWidgetId, R.id.widget_problems_list)
+
+            Log.d("ProblemWidgetService", "RemoteViews setup complete for widget $appWidgetId")
+        }
+    }
+
+
+    private suspend fun getTotalProblemsCount(context: Context, serverId: Long): Int {
+        return try {
+            val cachePrefs = context.getSharedPreferences("problems_cache", Context.MODE_PRIVATE)
+            val problemsJson = cachePrefs.getString("problems_$serverId", null)
+
+            if (problemsJson != null) {
+                val allProblems = Json.decodeFromString<List<ZabbixProblem>>(problemsJson)
+                allProblems.size
+            } else {
+                0
+            }
+        } catch (e: Exception) {
+            Log.e("ProblemWidgetService", "Error getting total problems count", e)
+            0
+        }
+    }
+
+
+    private fun notifyAppWidgetViewDataChanged(context: Context, appWidgetId: Int, viewId: Int) {
+        try {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, viewId)
+            Log.d("ProblemWidgetService", "Notified view data changed for widget $appWidgetId, view $viewId")
+        } catch (e: Exception) {
+            Log.e("ProblemWidgetService", "Error notifying view data changed", e)
         }
     }
 
@@ -310,9 +480,6 @@ class ProblemWidgetService : JobIntentService() {
 
         return RemoteViews(context.packageName, layoutRes).apply {
             val configureText = com.itsoul.zbxclient.util.WidgetLocaleManager.getLocalizedString(context, "configure_widget")
-
-            // Если в макете есть TextView с id widget_empty_text, раскомментируйте:
-            // setTextViewText(R.id.widget_empty_text, configureText)
 
             val configIntent = Intent(context, ProblemWidgetConfigureActivity::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)

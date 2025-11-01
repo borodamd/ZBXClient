@@ -6,7 +6,7 @@
     android:background="@drawable/widget_background"
     android:padding="8dp">
 
-    <!-- Заголовок виджета -->
+    <!-- Заголовок виджета с компактными иконками фильтров -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -23,6 +23,27 @@
             android:textSize="16sp"
             android:maxLines="1"
             android:ellipsize="end" />
+
+        <!-- Компактные иконки фильтров - используем TextView -->
+        <TextView
+            android:id="@+id/widget_ack_btn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="A"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/widget_maint_btn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="M"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="4dp" />
 
         <ImageButton
             android:id="@+id/widget_refresh_btn"
@@ -42,34 +63,6 @@
         android:text="Last update: --:--"
         android:textSize="12sp"
         android:textColor="#666" />
-
-    <!-- Фильтры Ack и Maint (заменили CheckBox на TextView) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp">
-
-        <TextView
-            android:id="@+id/widget_ack_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Ack: OFF"
-            android:textSize="12sp"
-            android:padding="4dp"
-            android:background="#f0f0f0" />
-
-        <TextView
-            android:id="@+id/widget_maint_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Maint: OFF"
-            android:textSize="12sp"
-            android:padding="4dp"
-            android:layout_marginStart="8dp"
-            android:background="#f0f0f0" />
-
-    </LinearLayout>
 
     <!-- Список проблем -->
     <ListView

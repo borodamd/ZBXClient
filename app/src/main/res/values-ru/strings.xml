@@ -95,4 +95,6 @@
     <string name="unknown_server">Неизвестный сервер</string>
     <string name="widget_last_update">Обновлено</string>
     <string name="widget_problems_count">проблем</string>
+    <string name="filter_on">ВКЛ</string>
+    <string name="filter_off">ВЫКЛ</string>
 </resources>

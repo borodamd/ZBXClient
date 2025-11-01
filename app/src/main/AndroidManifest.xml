@@ -31,13 +31,17 @@
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
-        <!-- Провайдер виджета -->
+        <!-- Провайдер виджета - ОДИН объединенный receiver -->
         <receiver
             android:name=".widget.ProblemWidget"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.itsoul.zbxclient.ACTION_REFRESH_WIDGET" />
+                <action android:name="com.itsoul.zbxclient.ACTION_TOGGLE_ACK" />
+                <action android:name="com.itsoul.zbxclient.ACTION_TOGGLE_MAINT" />
+                <action android:name="com.itsoul.zbxclient.ACTION_FORCE_REFRESH" />
+                <action android:name="com.itsoul.zbxclient.LANGUAGE_CHANGED" />
             </intent-filter>
 
             <meta-data
@@ -59,6 +63,7 @@
             android:name=".widget.ProblemWidgetRemoteViewsService"
             android:permission="android.permission.BIND_REMOTEVIEWS"
             android:exported="false" />
+
         <receiver
             android:name=".widget.ThemeChangeReceiver"
             android:enabled="true"
@@ -67,5 +72,6 @@
                 <action android:name="com.itsoul.zbxclient.THEME_CHANGED" />
             </intent-filter>
         </receiver>
+
     </application>
 </manifest>

@@ -96,5 +96,8 @@
     <string name="unknown_server">Unknown Server</string>
     <string name="widget_last_update">Last update</string>
     <string name="widget_problems_count">problems</string>
+    <string name="filter_on">ON</string>
+    <string name="filter_off">OFF</string>
+
 
 </resources>

@@ -13,14 +13,18 @@ import com.itsoul.zbxclient.ZabbixProblem
 import kotlinx.serialization.json.Json
 import com.itsoul.zbxclient.util.ThemeManager
 import com.itsoul.zbxclient.util.WidgetTheme
+import android.util.Log
+
+
 
 class ProblemWidgetRemoteViewsService : RemoteViewsService() {
 
-    override fun onGetViewFactory(intent: Intent): RemoteViewsService.RemoteViewsFactory {
-        val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
+        Log.d("ProblemWidgetRemoteViewsService", "onGetViewFactory called")
+        val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val serverId = intent.getLongExtra(ProblemWidgetService.EXTRA_SERVER_ID, -1)
-
-        return ProblemRemoteViewsFactory(applicationContext, appWidgetId, serverId)
+        Log.d("ProblemWidgetRemoteViewsService", "Creating factory for widget: $appWidgetId, server: $serverId")
+        return ProblemWidgetRemoteViewsFactory(this.applicationContext, intent)
     }
 }
 
